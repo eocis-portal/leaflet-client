@@ -1,0 +1,45 @@
+html, body {
+    width: 100%;
+}
+
+#time_slider_range {
+    appearance: none;
+    width: 100%;
+    margin-left: 0px;
+    margin-right: 0px;
+}
+
+#time_slider_range::-webkit-slider-runnable-track {
+  background: lightgray;
+}
+
+input[type="date"] {
+    padding: 0px;
+    margin: 0px;
+    min-width: 120px;
+    height: 50px;
+}
+
+button {
+    height: 50px;
+    padding: 0px;
+    margin: 0px;
+}
+
+canvas {
+    margin-left: 0px;
+    margin-right: 0px;
+}
+
+.time_slider {
+    display: flex;
+    flex-direction: row;
+    flex-basis: fit-content;
+    width: 98%;
+    overflow: clip;
+}
+
+.slide_container {
+    flex-grow: 1;
+    margin-left: 10px;
+}

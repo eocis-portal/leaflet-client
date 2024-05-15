@@ -1,0 +1,138 @@
+@import "ol/ol.css";
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+}
+
+img:not(.logo):not(#legend) {
+    image-rendering: pixelated;
+}
+
+.search_link {
+  color: blue;
+  text-decoration: underline;
+}
+
+#opacity_control {
+  border: 2px solid gray;
+  background-color:white;
+  width:250px;
+  display:inline;
+  float: right;
+}
+
+#date_picker {
+  border: 2px solid gray;
+  background-color:white;
+  display:inline;
+  float: right;
+  width:250px;
+}
+
+#layers {
+  width: fit-content;
+  height: fit-content;
+}
+
+#layer_column {
+  width: 400px;
+  border: 10px solid lightgray;
+  border-radius: 5px;
+  background-color: lightgray;
+}
+
+#legend {
+  width:380px;
+  border-radius: 5px;
+  border: 1px solid black;
+}
+
+#legend_table_div {
+  max-height: 300px;
+  overflow: scroll;
+}
+
+#beta_button {
+  margin-right: 10px;
+}
+
+#map { position: absolute; top: 80px; bottom: 80px; left: 0px; right: 0px; }
+
+.navbar {
+  z-index: 10;
+}
+
+#layers, .accordion-body  {
+  z-index: 100 !important;
+}
+
+#layers {
+  position: relative;
+  margin-top: 100px;
+}
+
+#slider_div {
+  position: absolute;
+  bottom: 0px;
+}
+
+.ol-popup {
+  position: absolute;
+  background-color: white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #cccccc;
+  bottom: 12px;
+  left: -50px;
+  min-width: 280px;
+}
+.ol-popup:after, .ol-popup:before {
+  top: 100%;
+  border: solid transparent;
+  content: " ";
+  height: 0;
+  width: 0;
+  position: absolute;
+  pointer-events: none;
+}
+.ol-popup:after {
+  border-top-color: white;
+  border-width: 10px;
+  left: 48px;
+  margin-left: -10px;
+}
+.ol-popup:before {
+  border-top-color: #cccccc;
+  border-width: 11px;
+  left: 48px;
+  margin-left: -11px;
+}
+.ol-popup-closer {
+  text-decoration: none;
+  position: absolute;
+  top: 2px;
+  right: 8px;
+}
+.ol-popup-closer:after {
+  content: "✖";
+}
+
+.ol-zoom {
+   left: unset;
+   right: 8px;
+}
+
+.dropdown-submenu {
+  position: relative;
+}
+
