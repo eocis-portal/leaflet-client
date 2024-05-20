@@ -3,10 +3,8 @@ html, body {
 }
 
 #time_slider_range {
-    appearance: none;
     width: 100%;
-    margin-left: 0px;
-    margin-right: 0px;
+    border: 1px solid black;
 }
 
 #time_slider_range::-webkit-slider-runnable-track {
@@ -26,20 +24,26 @@ button {
     margin: 0px;
 }
 
-canvas {
-    margin-left: 0px;
-    margin-right: 0px;
-}
-
 .time_slider {
     display: flex;
     flex-direction: row;
     flex-basis: fit-content;
-    width: 98%;
-    overflow: clip;
+    column-gap: 20px;
+    padding-right: 20px;
+    padding-bottom: 10px;
 }
 
 .slide_container {
     flex-grow: 1;
-    margin-left: 10px;
+}
+
+datalist {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 0px;
+  padding: 0px;
+  display: flex;
+  flex-direction: column;
+  writing-mode: vertical-lr;
 }

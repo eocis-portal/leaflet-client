@@ -32,13 +32,32 @@ class TimeSlider {
         this.slider.setAttribute("max", "1");
         this.slider.setAttribute("step", "0.0000001");
         this.slider_div.appendChild(this.slider);
+        this.datalist = document.createElement("datalist");
+        this.datalist.setAttribute("id","date_values");
+        this.slider_div.appendChild(this.datalist);
+        this.slider.setAttribute("list","date_values");
         this.slide_container.appendChild(this.slider_div);
-        this.scale_div = document.createElement("div");
-        this.slide_container.appendChild(this.scale_div);
+
         this.event_handlers = {};
         this.start_date = start_date;
         this.end_date = end_date;
         this.step = step;
+
+        let start_year = 1900+this.start_date.getYear();
+        let end_year = 1900+this.end_date.getYear();
+
+        for(let year=start_year; year <= end_year; year+=1) {
+            const t1 = this.start_date.getTime();
+            const t2 = this.end_date.getTime();
+            const t3 = new Date(year+"-01-01").getTime();
+            if (t3 >= t1 && t3 <= t2) {
+                let v = (t3-t1)/(t2-t1);
+                let option = document.createElement("option");
+                option.setAttribute("value",""+v);
+                option.setAttribute("label",""+year);
+                this.datalist.appendChild(option);
+            }
+        }
 
         this.width = 100;
         this.current_value = end_date;
@@ -145,54 +164,8 @@ class TimeSlider {
         }
         let r = this.slide_container.getBoundingClientRect();
         this.width = r.width;
-        this.draw_scale();
+        console.log("resize:"+this.width);
     }
 
-    draw_scale() {
-        this.scale_div.innerHTML = "";
-        this.canvas = document.createElement("canvas");
-        this.canvas.setAttribute("height","50");
-        this.canvas.setAttribute("width",this.width);
-        this.scale_div.appendChild(this.canvas);
-        let ctx = this.canvas.getContext("2d");
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, this.canvas.width, 5);
-        const t1 = this.start_date.getTime();
-        const t2 = this.end_date.getTime();
-        let start_year = this.start_date.getFullYear();
-        let end_year = this.end_date.getFullYear();
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 1;
-        ctx.lineCap = "square";
-        let last_x = 0;
-        let last_text_x = -20;
-        const label_gap = 40;
-        for (var year = start_year; year <= (end_year+1); year += 1) {
-            let dt = new Date(year, 0, 1);
-            let frac = (dt.getTime() - t1) / (t2 - t1);
-            let x = frac * this.canvas.width;
-            if (frac >= 0 && frac <= 1) {
-                ctx.beginPath();
-                ctx.moveTo(x, 5);
-                ctx.lineTo(x, 10);
-                ctx.stroke();
-            }
-            if (last_x === null) {
-                last_x = x;
-            } else {
-                let mid_x = (x + last_x) / 2;
-                if (mid_x - last_text_x > label_gap) {
-                    ctx.font = "12px sans-serif";
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "top";
-                    ctx.fillText("" + (year-1), mid_x, 15);
-                    last_text_x = mid_x;
-                }
-                last_x = x;
-            }
-        }
-    }
 }
 

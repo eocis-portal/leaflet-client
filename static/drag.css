@@ -1,0 +1,19 @@
+.control_container {
+    margin-top: 5px;
+    margin-bottom: 5px;
+    position: fixed;
+    background-color: #f1f1f1;
+    border: 1px solid #d3d3d3;
+    text-align: center;
+    z-index:1000;
+    border-radius: 5px 5px 5px 5px;
+}
+
+.control_container_header {
+  padding: 10px;
+  cursor: move;
+  z-index: 10;
+  background-color: #2196F3;
+  color: #fff;
+    border-radius: 5px 5px 0px 0px;
+}

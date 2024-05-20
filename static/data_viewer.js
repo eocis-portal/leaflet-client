@@ -1,24 +1,22 @@
 
-
+var map = null;
+var popup = null;
 
 class DataViewer {
 
-    constructor(point_service_base_url) {
+    constructor(base_wms_url, point_service_base_url) {
+        this.base_wms_url = base_wms_url;
         this.point_service_base_url = point_service_base_url;
-        this.container = $('#popup');
-        this.layers = $("#layers");
-
+        this.popup_latlng = null;
         this.start_date = new Date(2021, 0, 1);
         this.view_date = new Date(2021, 11, 31);
         this.end_date = new Date(2021, 11, 31);
 
-        this.current_projection = "EPSG:4326";
-
-        this.opacity_control = $("#opacity_control");
+        this.opacity_control = document.getElementById("opacity_control");
         if (this.opacity_control) {
-            this.opacity_control.on("change", (ev) => {
+            this.opacity_control.addEventListener("change", (ev) => {
                 let opacity_fraction = Number.parseFloat(this.opacity_control.value);
-                this.update_opacity(opacity_fraction);
+                this.current_layer.setOpacity(opacity_fraction);
             });
         }
 
@@ -27,23 +25,19 @@ class DataViewer {
         this.current_popup_coordinate = null;
         this.slider = null;
 
-        this.map = L.map('map', {
+        map = L.map('map', {
             center: [0,0],
             zoom: 3,
             crs: L.CRS.EPSG4326
         });
 
-        var wmsLayer = L.tileLayer.wms('https://ows.terrestris.de/osm/service?', {layers: 'OSM-WMS'}).addTo(this.map);
+        // var wmsLayer = L.tileLayer.wms('https://ows.terrestris.de/osm/service?', {layers: 'OSM-WMS'}).addTo(map);
+
+        var wmsLayer = L.tileLayer.wms('https://eocis.org/mapproxy/service?', {
+            layers: 'osm'
+        }).addTo(map);
 
         // var wmsLayer = L.tileLayer.wms('http://ows.mundialis.de/services/service?', {layers: 'TOPO-OSM-WMS'}).addTo(this.map);
-
-        /**
-         * Add a click handler to the map to render the popup.
-         */
-        /* this.map.on('singleclick', function (evt) {
-            this.current_popup_coordinate = evt.coordinate;
-            this.update_popup();
-        }); */
 
         this.closer = $("#popup-closer");
         this.closer.onclick = function () {
@@ -53,16 +47,36 @@ class DataViewer {
             return false;
         };
 
-
         this.search_results_modal = new bootstrap.Modal($('#search_results_modal').get(0), {
             keyboard: false
         });
 
         this.info_modal = new bootstrap.Modal($('#info_modal').get(0), {
-            keyboard: false
+           keyboard: false
         });
 
         this.bind();
+
+        setup_drag(document.getElementById("layers"),document.getElementById("layers_header"));
+
+        document.getElementById("layers_close_btn").addEventListener("click", (evt) => {
+            document.getElementById("layers").style.display = "none";
+        });
+
+        document.getElementById("layers_open_btn").addEventListener("click", (evt) => {
+            document.getElementById("layers").style.display = "block";
+        });
+
+        popup = L.popup();
+
+        popup.on('remove', ()=> {
+           this.popup_latlng = null;
+        });
+
+        map.on('click', (e) => {
+            this.popup_latlng = e.latlng;
+            this.update_popup(e.latlng);
+        });
     }
 
     date_to_string(dt) {
@@ -100,24 +114,16 @@ class DataViewer {
 
     update_view_date() {
         if (this.current_layer) {
-            this.current_layer.getSource().updateParams({'TIME': this.view_date.toISOString().slice(0, 10)});
+            this.current_layer.setParams({'TIME': this.view_date.toISOString()});
         }
-        if (this.current_popup_coordinate) {
-            update_popup();
+        if (this.popup_latlng) {
+            this.update_popup(popup_latlng);
         }
-    }
-
-    update_opacity(opacity_fraction) {
-        this.current_layer.setOpacity(opacity_fraction);
-    }
-
-    change_map_projection(new_projection) {
-
     }
 
     clear_layer() {
         if (this.current_layer != null) {
-            // this.map.removeLayer(this.current_layer);
+            map.removeLayer(this.current_layer);
             this.current_layer = null;
             this.remove_time_slider();
             this.current_popup_coordinate = null;
@@ -132,13 +138,23 @@ class DataViewer {
         return elt;
     }
 
+    get_legend_url(layer_name) {
+        return this.base_wms_url+"?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetLegendGraphic&FORMAT=image%2Fpng&LAYER="+layer_name+"&SCALE=841.4360508601347";
+    }
+
     select_layer(layer_name) {
 
         if (layer_name === this.current_layer_name) {
             return;
         }
         if (this.current_layer != null) {
-            // this.map.removeLayer(this.current_layer);
+            map.removeLayer(this.current_layer);
+        }
+
+        map.closePopup();
+
+        if (this.popup_latlng != null) {
+            this.popup_latlng = null;
         }
 
         this.set_date_range(layer_name);
@@ -153,6 +169,10 @@ class DataViewer {
         let wms_params = {'LAYERS': layer_name, 'format':"image/png", 'version':'1.3.0'}
         let metadata = layer_metadata[layer_name];
 
+        document.getElementById("layer_title").innerHTML = metadata.name;
+        document.getElementById("layers_header_title").innerHTML = metadata.name;
+        document.getElementById("layer_info").innerHTML = metadata.long_description;
+
         if (this.view_date) {
             this.add_time_slider(metadata.step);
             wms_params['TIME'] = this.view_date.toISOString();
@@ -160,21 +180,15 @@ class DataViewer {
             this.remove_time_slider();
         }
 
-        this.current_layer = L.tileLayer.wms('https://eocis.org/wms', wms_params).addTo(this.map);
+        this.current_layer = L.tileLayer.wms(this.base_wms_url, wms_params).addTo(map);
 
         this.current_layer_name = layer_name;
 
-        if ("lat" in metadata && "lon" in metadata && "zoom" in metadata) {
-            // this.map.getView().animate({zoom: metadata.zoom, center: [metadata.lon, metadata.lat]});
-        }
-        // this.map.addLayer(window.current_layer);
-        // const resolution = this.map.getView().getResolution();
-/*
-        const legend_img = $('legend');
-        const legend_table_div = $('legend_table_div');
+        const legend_img = document.getElementById('legend');
+        const legend_table_div = document.getElementById('legend_table_div');
 
         if (metadata.legend === "wms") {
-            const graphicUrl = wms_src.getLegendUrl(resolution);
+            const graphicUrl = this.get_legend_url(layer_name);
             legend_table_div.style.display = "none";
             legend_img.style.display = "inline";
             legend_img.src = graphicUrl;
@@ -198,21 +212,17 @@ class DataViewer {
 
                 legend_table.appendChild(tr);
             }
-        } */
+        }
 
         let long_description = metadata.long_description;
         const info = $('layer_info');
         info.innerHTML = long_description;
-        // this.layers.style.display = "block";
-        // this.change_map_projection(metadata.projection);
     }
 
-    update_popup() {
-        if (this.current_popup_coordinate == null) {
-            return;
-        }
-        let lon = this.current_popup_coordinate[0];
-        let lat = this.current_popup_coordinate[1];
+    update_popup(latlng) {
+
+        let lon = latlng.lng;
+        let lat = latlng.lat;
         let url = "";
         if (this.view_date) {
             let dt_s = this.view_date.toISOString().split('T')[0];
@@ -220,6 +230,7 @@ class DataViewer {
         } else {
             url = this.point_service_base_url + "/" + this.current_layer_name + "/" + lat + ":" + lon;
         }
+
         fetch(url).then(r => r.text(), e => {
             console.error(e);
         }).then(t => {
@@ -243,8 +254,11 @@ class DataViewer {
                 }
                 html = "<p></p></p><p>" + location + "</p><p>" + text + "</p>";
             }
-            $("popup-content-value").innerHTML = html;
-            this.overlay.setPosition(this.current_popup_coordinate);
+            popup
+                    .setLatLng(latlng)
+                    .setContent(html)
+                    .openOn(map);
+
         }, e => {
             console.error(e)
         });
@@ -262,7 +276,6 @@ class DataViewer {
     }
 
     run_search(search_text) {
-        alert("run_search");
         let matching_layers = [];
         for (let layer_name in layer_metadata) {
             let metadata = layer_metadata[layer_name];
@@ -319,8 +332,8 @@ class DataViewer {
         $("#info_btn").on("click",
             (evt) => {
                 this.info_modal.show();
-                ev.preventDefault();
-                ev.stopPropagation();
+                evt.preventDefault();
+                evt.stopPropagation();
             });
     }
 
@@ -340,6 +353,8 @@ class DataViewer {
         document.getElementById("slider_div").innerHTML = "";
     }
 }
+
+
 
 
 
