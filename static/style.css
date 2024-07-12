@@ -13,7 +13,7 @@ body {
   width: 100%;
 }
 
-img:not(.logo):not(#legend) {
+img:not(.logo):not(.legend) {
     image-rendering: pixelated;
 }
 
@@ -22,7 +22,7 @@ img:not(.logo):not(#legend) {
   text-decoration: underline;
 }
 
-#opacity_control {
+.opacity_control {
   border: 2px solid gray;
   background-color:white;
   width:250px;
@@ -43,17 +43,24 @@ img:not(.logo):not(#legend) {
   height: fit-content;
 }
 
-#layer_column {
-  width: 400px;
+#layer_body {
+  min-width: 400px;
+  height: 400px;
   border: 10px solid lightgray;
   border-radius: 5px;
   background-color: lightgray;
 }
 
-#legend {
-  width:380px;
+#layer_column {
+  margin-right: 20px;
+}
+
+.legend {
+  width:300px;
   border-radius: 5px;
   border: 1px solid black;
+  padding-top: -30px;
+  padding-bottom: -30px;
 }
 
 #legend_table_div {

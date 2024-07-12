@@ -1,0 +1,14 @@
+{
+  "monthly_ice_sheet_metadata": {
+    "layer": "ice_sheet_monthly",
+    "name": "Ice Sheet Surface Elevation Change - Monthly",
+    "short_description": "Ice Sheet Surface Elevation Change - Monthly",
+    "units": "Fraction",
+    "start_date": "1994-11-15",
+    "end_date": "2020-06-01",
+    "step": "daily",
+    "long_description": "",
+    "legend": "wms",
+    "projection": "EPSG:3031"
+  }
+}

@@ -3,7 +3,7 @@ var time_slider_base_url = document.currentScript.src.split("/").slice(0,-1).joi
 
 class TimeSlider {
 
-    constructor(parent_id, start_date, end_date, step) {
+    constructor(parent_id, start_date, end_date) {
         this.parent = document.getElementById(parent_id);
         this.dec_btn = document.createElement("button");
         this.dec_btn_image = document.createElement("img");
@@ -41,7 +41,6 @@ class TimeSlider {
         this.event_handlers = {};
         this.start_date = start_date;
         this.end_date = end_date;
-        this.step = step;
 
         let start_year = 1900+this.start_date.getYear();
         let end_year = 1900+this.end_date.getYear();
@@ -67,14 +66,6 @@ class TimeSlider {
             const t2 = this.end_date.getTime();
             let t3 = t1 + (frac*(t2-t1));
             let new_dt = new Date(t3);
-            if (this.step === "monthly") {
-                new_dt.setDate(15); // mid month
-            }
-            if (this.step === "yearly") {
-                // set to 1st July
-                new_dt.setMonth(6);
-                new_dt.setDate(1);
-            }
             new_dt.setHours(12, 0, 0, 0);
             this.value = new_dt;
         });
@@ -93,30 +84,10 @@ class TimeSlider {
     }
 
     adjust(nr_steps) {
-        switch(this.step) {
-            case "daily":
-                var d = new Date(this.current_value);
-                d.setDate(d.getDate() + nr_steps);
-                if (d >= this.start_date && d <= this.end_date) {
-                    this.value = d;
-                }
-                break;
-            case "monthly":
-                var d = new Date(this.current_value);
-                d.setMonth(d.getMonth()+nr_steps);
-                if (d >= this.start_date && d <= this.end_date) {
-                    this.value = d;
-                }
-                break;
-            case "yearly":
-                var d = new Date(this.current_value);
-                let year = d.getFullYear();
-                year += nr_steps;
-                d = new Date(year,d.getMonth(),d.getDate(),12,0,0);
-                if (d >= this.start_date && d <= this.end_date) {
-                    this.value = d;
-                }
-                break;
+        var d = new Date(this.current_value);
+        d.setDate(d.getDate() + nr_steps);
+        if (d >= this.start_date && d <= this.end_date) {
+            this.value = d;
         }
     }
 

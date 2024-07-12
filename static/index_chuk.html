@@ -18,8 +18,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
     <script src="data_viewer.js"></script>
-    <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
-    <link href="https://visualtopology.github.io/exo/versions/latest/exo.css" rel="stylesheet" type="text/css">
     <link rel="icon" href="https://eocis.org/portal/images/cropped-Green-Globe-with-Greenland-e1686222767419-32x32.png"
           sizes="32x32"/>
     <link rel="icon"
@@ -34,8 +32,8 @@
 <div class="container-fluid">
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
-            <span class="navbar-brand" id="view_type">Global & Regional</span>
-            <input type="button" id="layers_open_btn" value="Layers..." style="margin-right:20px;">
+            <span class="navbar-brand" id="layer_title"></span>
+            <input type="button" id="layers_open_btn" value="Controls..." style="margin-right:20px;">
             <a class="navbar-brand" href="#">EOCIS Portal - Data Viewer</a>
             <span id="beta_button" class="badge rounded-pill bg-danger">Beta</span>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
@@ -78,12 +76,22 @@
 </div>
 
 <div id="layers" class="control_container">
-    <div id="layers_header" class="control_container_header">Layers<button type="button" id="layers_close_btn" class="btn-close btn-close-white" style="float:right;" aria-label="Close"></button></div>
-    <div id="layer_body" style="overflow-x: hidden; overflow-y: auto;">
-        <button id="add_layer_btn" class="btn btn-primary">Add Layer</button>
-        <div id="layer_column">
-
+    <div id="layers_header" class="control_container_header">Controls<button type="button" id="layers_close_btn" class="btn-close btn-close-white" style="float:right;" aria-label="Close"></button></div>
+    <div id="layer_column" class="col col-4">
+        <h4 id="layers_header_title"></h4>
+        <div style="height:20px;"></div>
+        <img id="legend">
+        <div id="legend_table_div" style="display:none;">
+            <table id="legend_table">
+            </table>
         </div>
+        <div style="height:20px;"></div>
+        <div id="opacity_controls">
+            <label id="opacity_control_label" for="opacity_control">Opacity</label>
+            <input id="opacity_control" type="range" step="0.01" min="0.0" max="1.0" value="1.0">
+        </div>
+        <div style="height:20px;"></div>
+        <button id="info_btn" type="button" class="btn btn-primary">More Information...</button>
     </div>
 </div>
 
@@ -141,40 +149,25 @@
     </div>
 </div>
 
-<div class="modal fade" id="explore_datasets_modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-     aria-labelledby="staticBackdropLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Explore EOCIS Datasets</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-
-            <div class="list-group">
-              <button type="button" class="list-group-item list-group-item-action active">
-                Cras justo odio
-              </button>
-                <div class="list-group"><button type="button" style="margin-left:50px; margin-right:-50px;" class="list-group-item list-group-item-action">
-                Cras justo odio2
-              </button>
-                    </div>
-              <button type="button" class="list-group-item list-group-item-action">Dapibus ac facilisis in</button>
-              <button type="button" class="list-group-item list-group-item-action">Morbi leo risus</button>
-              <button type="button" class="list-group-item list-group-item-action">Porta ac consectetur ac</button>
-              <button type="button" class="list-group-item list-group-item-action" disabled>Vestibulum at eros</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 
 
 <script type="text/javascript">
     window.addEventListener('load', async function () {
         $('#splash_modal').modal('show');
-        let dv = new DataViewer("https://eocis.org/wms","https://eocis.org/point/service/value","metadata.json");
+        let dv = new DataViewer("https://eocis.org/wms","https://eocis.org/point/service/value","metadata_chuk.json");
         await dv.load_metadata();
-        dv.init();
+        let sp = new URLSearchParams(location.search);
+        if (sp.has("layer")) {
+            dv.select_layer(sp.get("layer"));
+        }
+
+        window.addEventListener("popstate", (evt) => {
+            if (history.state.layer) {
+                dv.select_layer(history.state.layer);
+            } else {
+                dv.clear_layer();
+            }
+        });
     });
 </script>
 

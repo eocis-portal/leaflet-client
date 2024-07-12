@@ -1,0 +1,66 @@
+{
+  "analysed_sst_metadata": {
+    "layer": "analysed_sst",
+    "name": "Sea Surface Temperatures",
+    "short_description": "Daily Sea Surface Temperature Estimates",
+    "units": "Degrees Centigrade",
+    "start_date": "1980-01-01",
+    "end_date": "2024-02-17",
+    "long_description": "This dataset provides daily estimates of global sea surface temperature (SST) based on observations from multiple satellite sensors.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
+    "step": "daily",
+    "legend": "wms",
+    "projection": "EPSG:4326"
+  },
+  "analysed_sst_anomaly_metadata": {
+    "layer": "analysed_sst_anomaly",
+    "name": "Sea Surface Temperature Anomalies",
+    "short_description": "Daily Sea Surface Temperature Anomaly Estimates",
+    "units": "Degrees Centigrade",
+    "start_date": "1980-01-01",
+    "end_date": "2023-09-23",
+    "long_description": "This dataset provides daily estimates of global sea surface temperature (SST) based on observations from multiple satellite sensors.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
+    "step": "daily",
+    "legend": "wms",
+    "projection": "EPSG:4326"
+  },
+  "soil_moisture_metadata": {
+    "layer": "beta_c4grass",
+    "name": "Soil Moisture",
+    "short_description": "Soil Moisture",
+    "units": "Fraction",
+    "start_date": "1984-01-01",
+    "end_date": "2021-12-31",
+    "long_description": "Soil Moisture Long Description",
+    "lat": 0,
+    "lon": 10,
+    "zoom": 4,
+    "step": "daily",
+    "legend": "wms",
+    "projection": "EPSG:4326"
+  },
+  "monthly_chlor_a_metadata": {
+    "layer": "monthly_chlor_a",
+    "name": "Ocean Colour - Monthly",
+    "short_description": "Monthly Ocean Colour",
+    "units": "milligram m-3",
+    "start_date": "1997-09-15",
+    "end_date": "2021-12-15",
+    "long_description": "This dataset provides global monthly estimates of ocean surface chlorophyll-a concentration and remote sensing reflectance derived from multiple satellite sensors.  <a href=\"https://eocis.org/dataset-ocean-colour/\" target=\"_blank\">EOCIS Ocean Colour</a>",
+    "step": "monthly",
+    "legend": "wms",
+    "projection": "EPSG:4326"
+  },
+  "monthly_aerosol_metadata": {
+    "layer": "AOD550_mean",
+    "name": "Aerosol Optical Depth - Monthly",
+    "short_description": "Estimates the thickness of dust and other aerosols in the atmosphere",
+    "units": "Fraction",
+    "start_date": "2018-05-15",
+    "end_date": "2023-03-15",
+    "step": "monthly",
+    "long_description": "This data set provides observational records of aerosol properties obtained from observations collected by various satellite instruments. Aerosols are minor constituents of the atmosphere by mass, but critical components in terms of impact on climate. Aerosols influence the global radiation balance directly by scattering and absorbing radiation, and indirectly through influencing cloud reflectivity, cloud cover and cloud lifetime. <a href=\"https://eocis.org/dataset-aerosol-and-particulate-matter/\" target=\"_blank\">EOCIS Aerosol and Particulate Matter Dataset Information Page</a>",
+    "legend": "wms",
+    "projection": "EPSG:4326"
+  }
+}
+

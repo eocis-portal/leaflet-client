@@ -2,50 +2,95 @@
 var map = null;
 var popup = null;
 
+
 class DataViewer {
 
-    constructor(base_wms_url, point_service_base_url) {
+    constructor(base_wms_url, point_service_base_url, metadata_url) {
         this.base_wms_url = base_wms_url;
         this.point_service_base_url = point_service_base_url;
+        this.metadata_url = metadata_url;
+
         this.popup_latlng = null;
-        this.start_date = new Date(2021, 0, 1);
-        this.view_date = new Date(2021, 11, 31);
-        this.end_date = new Date(2021, 11, 31);
 
-        this.opacity_control = document.getElementById("opacity_control");
-        if (this.opacity_control) {
-            this.opacity_control.addEventListener("change", (ev) => {
-                let opacity_fraction = Number.parseFloat(this.opacity_control.value);
-                this.current_layer.setOpacity(opacity_fraction);
-            });
-        }
+        this.start_date = null;
+        this.end_date = null;
+        this.view_date = null;
 
-        this.current_layer_name = null;
-        this.current_layer = null;
-        this.current_popup_coordinate = null;
+        // mapping from layer_name to metadata object loaded from the metadata_url
+        this.layer_metadata = {};
+
+        // map from layer_name to the map layer, for all currently visible layers
+        this.current_layers = {};
+        this.current_layer_names = [];
+        this.layer_controls = {};
+
         this.slider = null;
 
-        map = L.map('map', {
-            center: [0,0],
+        this.projection = "";
+    }
+
+    async load_metadata() {
+        await fetch(this.metadata_url).then(
+            r => r.json()
+        ).then(
+            o => {
+                this.layer_metadata = o
+            }
+        );
+
+        for (var layer_name in this.layer_metadata) {
+            this.projection = this.layer_metadata[layer_name].projection;
+            if (this.projection) {
+                break;
+            }
+        }
+
+        if (this.projection === "EPSG:4326") {
+            this.crs = L.CRS.EPSG4326;
+            this.bounds = [[-180,-90],[180,90]];
+            this.center = [0,0];
+        } else {
+            if ((!this.projection in custom_crs)) {
+                throw "Unknown projection: " + this.projection;
+            }
+
+            let c = custom_crs[this.projection];
+
+            this.crs = new L.Proj.CRS(this.projection, c.proj4, {
+                resolutions: c.resolutions,
+                origin: c.origin
+            });
+
+            this.transformCoords = function (arr) {
+                return proj4(this.projection, 'EPSG:4326', arr).reverse();
+            };
+
+            this.bounds = [
+                this.transformCoords([ c.minx, c.miny ]),
+                this.transformCoords([ c.maxx, c.maxy ])
+            ];
+
+            this.center = [51,-1];
+
+        }
+
+        // Initialize the map.
+        const mapOptions = {
+            crs: this.crs,
+            minZoom: 0,
+            maxZoom: 9,
+            center: this.center,
             zoom: 3,
-            crs: L.CRS.EPSG4326
-        });
+            bounds: this.bounds
+        };
 
-        // var wmsLayer = L.tileLayer.wms('https://ows.terrestris.de/osm/service?', {layers: 'OSM-WMS'}).addTo(map);
+        map = L.map('map', mapOptions);
 
-        var wmsLayer = L.tileLayer.wms('https://eocis.org/mapproxy/service?', {
+        this.wmsLayer = L.tileLayer.wms('https://eocis.org/mapproxy/service?', {
             layers: 'osm'
         }).addTo(map);
 
-        // var wmsLayer = L.tileLayer.wms('http://ows.mundialis.de/services/service?', {layers: 'TOPO-OSM-WMS'}).addTo(this.map);
 
-        this.closer = $("#popup-closer");
-        this.closer.onclick = function () {
-            this.current_popup_coordinate = null;
-            this.overlay.setPosition(undefined);
-            this.closer.blur();
-            return false;
-        };
 
         this.search_results_modal = new bootstrap.Modal($('#search_results_modal').get(0), {
             keyboard: false
@@ -53,6 +98,10 @@ class DataViewer {
 
         this.info_modal = new bootstrap.Modal($('#info_modal').get(0), {
            keyboard: false
+        });
+
+        this.explore_datasets_modal = new bootstrap.Modal($('#explore_datasets_modal').get(0), {
+            keyboard: false
         });
 
         this.bind();
@@ -73,10 +122,38 @@ class DataViewer {
            this.popup_latlng = null;
         });
 
-        map.on('click', (e) => {
+        map.on('click', async (e) => {
             this.popup_latlng = e.latlng;
-            this.update_popup(e.latlng);
+            await this.update_popup(e.latlng);
         });
+
+    }
+
+    init() {
+        let sp = new URLSearchParams(location.search);
+        if (sp.has("layer")) {
+            let names = sp.get("layer");
+            if (names) {
+                names = names.split(",");
+                this.select_layers(names);
+            }
+        }
+
+        window.addEventListener("popstate", (evt) => {
+            if (history.state.layer) {
+                let names = history.state.layer.split(",");
+                this.clear_layers();
+                this.select_layers(names);
+            } else {
+                this.clear_layers();
+            }
+        });
+    }
+
+    update_history() {
+        const url = new URL(window.location);
+        url.searchParams.set("layer", this.current_layer_names.join(","));
+        history.pushState({"layer": this.current_layer_names.join(",")}, "", url);
     }
 
     date_to_string(dt) {
@@ -97,38 +174,93 @@ class DataViewer {
     }
 
     set_date_range(layer_name) {
-        let start = layer_metadata[layer_name].start_date;
-        let end = layer_metadata[layer_name].end_date;
+        let start = this.layer_metadata[layer_name].start_date;
+        let end = this.layer_metadata[layer_name].end_date;
 
-        if (start == "") {
-            this.start_date = null;
-            this.end_date = null;
-            this.view_date = null;
-        } else {
-            this.start_date = new Date(Date.parse(start));
-            this.end_date = new Date(Date.parse(end));
-            this.view_date = new Date(Date.parse(end));
-            this.update_view_date();
+        if (start !== "") {
+            let start_date = new Date(Date.parse(start));
+            let end_date = new Date(Date.parse(end));
+
+            if (this.start_date === null || start_date >= this.start_date) {
+                this.start_date = start_date;
+            }
+            if (this.end_date === null || end_date <= this.end_date) {
+                this.end_date = end_date;
+            }
+            if (this.view_date === null || this.view_date > this.end_date) {
+                this.view_date = this.end_date;
+            }
+            if (this.view_date === null || this.view_date < this.start_date) {
+                this.view_date = this.start_date;
+            }
         }
     }
 
-    update_view_date() {
-        if (this.current_layer) {
-            this.current_layer.setParams({'TIME': this.view_date.toISOString()});
+    async update_view_date() {
+        for(let layer_name in this.current_layers) {
+            this.current_layers[layer_name].setParams({'TIME': this.view_date.toISOString()});
         }
         if (this.popup_latlng) {
-            this.update_popup(popup_latlng);
+            await this.update_popup(this.popup_latlng);
         }
     }
 
-    clear_layer() {
-        if (this.current_layer != null) {
-            map.removeLayer(this.current_layer);
-            this.current_layer = null;
-            this.remove_time_slider();
-            this.current_popup_coordinate = null;
-            $("layers").setAttribute("style", "display:none;");
+    update_time_controls() {
+        let has_times = false;
+        this.start_date = null;
+        this.end_date = null;
+        // work out which (if any) layers have a time dimension
+        for(let layer_name in this.current_layers) {
+            let layer_metadata = this.layer_metadata[layer_name];
+            if (layer_metadata.start_date !== "") {
+                has_times = true;
+            }
         }
+        this.remove_time_slider();
+        if (has_times) {
+            // set the start_date and end_date to the intersection of layer ranges
+            // if the view date lies outside the start/end range, set it to the start or end (whichever is closest)
+            let old_view_date = this.view_date;
+            for(let layer_name in this.current_layers) {
+                this.set_date_range(layer_name);
+            }
+            this.add_time_slider();
+            if (old_view_date !== this.view_date) {
+                this.update_view_date();
+            }
+        }
+    }
+
+    select_layers(layer_names) {
+        this.clear_layers();
+        for(var idx=0; idx<layer_names.length; idx++) {
+            this.add_layer(layer_names[idx]);
+        }
+    }
+
+    clear_layers() {
+        let layer_names = [];
+        for(let layer_name in this.current_layers) {
+            layer_names.push(layer_name);
+        }
+        layer_names.forEach(layer_name => { this.remove_layer(layer_name)});
+        this.remove_time_slider();
+        this.popup_latlng = null;
+        // $("layers").setAttribute("style", "display:none;");
+        this.current_layers = {};
+        this.current_layer_names = [];
+    }
+
+    remove_layer(layer_name) {
+        let layer = this.current_layers[layer_name];
+        map.removeLayer(layer);
+        delete this.current_layers[layer_name];
+        let controls = this.layer_controls[layer_name];
+        controls.parentElement.removeChild(controls);
+        delete this.layer_controls[layer_name];
+        this.update_time_controls();
+        this.update_history();
+        map.closePopup();
     }
 
     make_colour_entry(col) {
@@ -142,14 +274,13 @@ class DataViewer {
         return this.base_wms_url+"?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetLegendGraphic&FORMAT=image%2Fpng&LAYER="+layer_name+"&SCALE=841.4360508601347";
     }
 
-    select_layer(layer_name) {
+    add_layer(layer_name) {
 
-        if (layer_name === this.current_layer_name) {
-            return;
+        if (layer_name in this.current_layers) {
+            return; // layer is already included in display, do nothing
         }
-        if (this.current_layer != null) {
-            map.removeLayer(this.current_layer);
-        }
+
+        let layer_metadata = this.layer_metadata[layer_name];
 
         map.closePopup();
 
@@ -157,48 +288,66 @@ class DataViewer {
             this.popup_latlng = null;
         }
 
-        this.set_date_range(layer_name);
-        $("layer_title").value = layer_metadata[layer_name].name;
-
-        const url = new URL(window.location);
-        url.searchParams.set("layer", layer_name);
-        history.pushState({"layer": layer_name}, "", url);
+        $("layer_title").value = layer_metadata.name;
 
         this.current_popup_coordinate = null;
 
-        let wms_params = {'LAYERS': layer_name, 'format':"image/png", 'version':'1.3.0'}
-        let metadata = layer_metadata[layer_name];
+        let wms_params = {'LAYERS': layer_metadata.layer, 'format':"image/png", 'version':'1.3.0'}
 
-        document.getElementById("layer_title").innerHTML = metadata.name;
-        document.getElementById("layers_header_title").innerHTML = metadata.name;
-        document.getElementById("layer_info").innerHTML = metadata.long_description;
+        this.current_layers[layer_name] = L.tileLayer.wms(this.base_wms_url, wms_params).addTo(map);
+        this.current_layer_names.push(layer_name);
 
-        if (this.view_date) {
-            this.add_time_slider(metadata.step);
-            wms_params['TIME'] = this.view_date.toISOString();
-        } else {
-            this.remove_time_slider();
+        let long_description = layer_metadata.long_description;
+        const info = $('layer_info');
+        info.innerHTML = long_description;
+        this.layer_controls[layer_name] = this.add_layer_controls(layer_name, layer_metadata);
+        this.update_time_controls();
+        this.update_history();
+        if (this.popup_latlng) {
+            this.update_popup(this.popup_latlng);
+        }
+    }
+
+    add_layer_controls(layer_name,layer_metadata) {
+
+        function add_spacer(ele) {
+            let spacer = document.createElement("div");
+            spacer.setAttribute("style","height:20px;")
+            ele.appendChild(spacer);
         }
 
-        this.current_layer = L.tileLayer.wms(this.base_wms_url, wms_params).addTo(map);
+        let parent = document.getElementById("layer_column");
 
-        this.current_layer_name = layer_name;
+        let d = document.createElement("div");
+        d.appendChild(document.createElement("hr"));
 
-        const legend_img = document.getElementById('legend');
+        if (parent.firstChild) {
+            parent.insertBefore(d,parent.firstChild);
+        } else {
+            parent.appendChild(d);
+        }
+        add_spacer(d);
+        let h = document.createElement("h6");
+        h.appendChild(document.createTextNode(layer_metadata.name));
+        d.appendChild(h);
+        add_spacer(d);
+
         const legend_table_div = document.getElementById('legend_table_div');
 
-        if (metadata.legend === "wms") {
-            const graphicUrl = this.get_legend_url(layer_name);
-            legend_table_div.style.display = "none";
+        if (layer_metadata.legend === "wms") {
+            let url = this.get_legend_url(layer_metadata.layer);
+            let legend_img = document.createElement("img");
+            legend_img.setAttribute("class","legend");
             legend_img.style.display = "inline";
-            legend_img.src = graphicUrl;
-        } else if (metadata.legend === "table") {
-            const legend_table = document.getElementById('legend_table');
-            legend_img.style.display = "none";
+            legend_img.setAttribute("src", url);
+            d.appendChild(legend_img);
+        } else if (layer_metadata.legend === "table") {
+            let legend_table = document.createElement("table");
+
             legend_table.innerHTML = "";
             legend_table_div.style.display = "block";
-            let classes = metadata.legend_classes.split(" ");
-            let colors = metadata.legend_colors.split(" ");
+            let classes = layer_metadata.legend_classes.split(" ");
+            let colors = layer_metadata.legend_colors.split(" ");
             for (let row = 0; row < classes.length; row += 1) {
                 let tr = document.createElement("tr");
                 let tc1 = document.createElement("td");
@@ -212,73 +361,147 @@ class DataViewer {
 
                 legend_table.appendChild(tr);
             }
+            d.appendChild(legend_table);
         }
+        add_spacer(d);
 
-        let long_description = metadata.long_description;
-        const info = $('layer_info');
-        info.innerHTML = long_description;
+        let opacity_id = layer_name+"_opacity";
+        let opacity_div = document.createElement("div");
+        let opacity_label = document.createElement("label");
+        opacity_label.setAttribute("for", opacity_id);
+        opacity_label.setAttribute("class","opacity_control_label");
+        opacity_label.appendChild(document.createTextNode("Opacity"));
+
+        let opacity_control = document.createElement("input");
+        opacity_control.setAttribute("id",opacity_id);
+        opacity_control.setAttribute("class","opacity_control");
+        opacity_control.setAttribute("type","range");
+        opacity_control.setAttribute("step", "0.01");
+        opacity_control.setAttribute("min","0.0");
+        opacity_control.setAttribute("max","1.0");
+        opacity_control.setAttribute("value","1.0");
+
+        opacity_control.addEventListener("change", this.create_opacity_callback(layer_name));
+
+        opacity_div.appendChild(opacity_label);
+        opacity_div.appendChild(opacity_control);
+        d.appendChild(opacity_div);
+
+        add_spacer(d);
+
+        let button = document.createElement("button");
+        button.setAttribute("class","btn btn-info");
+        button.appendChild(document.createTextNode("Information..."));
+        button.addEventListener("click", this.create_info_button_callback(layer_name));
+        button.style.marginRight = "10px";
+        d.appendChild(button);
+
+        let remove_button = document.createElement("button");
+        remove_button.setAttribute("class","btn btn-dark");
+        remove_button.appendChild(document.createTextNode("Remove"));
+        remove_button.addEventListener("click", this.create_remove_button_callback(layer_name));
+        d.appendChild(remove_button);
+        return d;
     }
 
-    update_popup(latlng) {
+    create_opacity_callback(layer_name) {
+        return (ev) => {
+            let opacity_fraction = Number.parseFloat(ev.target.value);
+            this.current_layers[layer_name].setOpacity(opacity_fraction);
+        }
+    }
+
+    create_info_button_callback(layer_name) {
+        let description = this.layer_metadata[layer_name].long_description;
+        return (evt) => {
+            document.getElementById("layer_info").innerHTML = description;
+            this.info_modal.show();
+            evt.preventDefault();
+            evt.stopPropagation();
+        }
+    }
+
+    create_remove_button_callback(layer_name) {
+        return (evt) => {
+            this.remove_layer(layer_name);
+        }
+    }
+
+    async update_popup(latlng) {
 
         let lon = latlng.lng;
         let lat = latlng.lat;
-        let url = "";
-        if (this.view_date) {
-            let dt_s = this.view_date.toISOString().split('T')[0];
-            url = this.point_service_base_url + "/" + this.current_layer_name + "/" + lat + ":" + lon + "/" + dt_s;
-        } else {
-            url = this.point_service_base_url + "/" + this.current_layer_name + "/" + lat + ":" + lon;
-        }
 
-        fetch(url).then(r => r.text(), e => {
-            console.error(e);
-        }).then(t => {
-            let data = JSON.parse(t);
-            let html = "";
-            let location = data["location"];
-            if (!("value" in data) && !("category" in data)) {
-                html = "<p></p><p>" + location + "</p><p>No Data</p>";
+        let html = "";
+        let location = "";
+        for(let layer_idx in this.current_layer_names) {
+            let layer_name = this.current_layer_names[layer_idx];
+            let layer = this.layer_metadata[layer_name].layer;
+            let name = this.layer_metadata[layer_name].name;
+            let url = "";
+            if (this.view_date) {
+                let dt_s = this.view_date.toISOString().split('T')[0];
+                url = this.point_service_base_url + "/" + layer + "/" + lat + ":" + lon + "/" + dt_s;
             } else {
-                let text = "?";
-                if ("value" in data) {
-                    let current_value = data["value"];
-                    let units = data["units"];
-                    let current_value_label = "?";
-                    if (current_value !== null && current_value !== undefined) {
-                        current_value_label = current_value.toFixed(2)
-                    }
-                    text = current_value_label + " " + units;
-                } else if ("category" in data) {
-                    text = data["category"];
-                }
-                html = "<p></p></p><p>" + location + "</p><p>" + text + "</p>";
+                url = this.point_service_base_url + "/" + layer + "/" + lat + ":" + lon;
             }
-            popup
-                    .setLatLng(latlng)
-                    .setContent(html)
-                    .openOn(map);
 
-        }, e => {
-            console.error(e)
-        });
+            await fetch(url).then(r => r.text(), e => {
+                console.error(e);
+            }).then(t => {
+                try {
+                    let data = JSON.parse(t);
+                    location = data["location"];
+                    if (!("value" in data) && !("category" in data)) {
+                        // ignore
+                    } else {
+                        html += "<p>" + name + "</p>";
+                        let text = "?";
+                        if ("value" in data) {
+                            let current_value = data["value"];
+                            let units = data["units"];
+                            let current_value_label = "?";
+                            if (current_value !== null && current_value !== undefined) {
+                                current_value_label = current_value.toFixed(2)
+                            }
+                            text = current_value_label + " " + units;
+                        } else if ("category" in data) {
+                            text = data["category"];
+                        }
+                        html += "<p>" + text + "</p>";
+                    }
+                } catch(e) {
+                    console.error(e);
+                }
+            }, e => {
+                console.error(e)
+            });
+        }
+        console.log("html="+html);
+        if (html) {
+            html = "<p></p><p>" + location + "</p>" + html;
+            popup
+                .setLatLng(latlng)
+                .setContent(html)
+                .openOn(map);
+        }
     }
 
     search_match(search_text, searchable_text) {
         return (searchable_text.toLowerCase().search(search_text.toLowerCase()) != -1);
     }
 
-    make_select_layer_callback(layer_name) {
+    make_add_layer_callback(layer_name) {
         return (ev) => {
-            this.select_layer(layer_name);
+            this.add_layer(layer_name);
             this.search_results_modal.hide();
         }
     }
 
     run_search(search_text) {
         let matching_layers = [];
-        for (let layer_name in layer_metadata) {
-            let metadata = layer_metadata[layer_name];
+        for (let layer_name in this.layer_metadata) {
+            let metadata = this.layer_metadata[layer_name];
             ["name", "short_description", "long_description"].forEach(field => {
                 if (this.search_match(search_text, metadata[field])) {
                     if (!matching_layers.includes(layer_name)) {
@@ -301,16 +524,20 @@ class DataViewer {
                 let a = document.createElement("a");
                 a.setAttribute("class", "search_link");
                 let p = document.createElement("p");
-                let txt = document.createTextNode(layer_metadata[layer_name].name);
+                let txt = document.createTextNode(this.layer_metadata[layer_name].name);
                 li.appendChild(a);
                 a.appendChild(txt);
-                let desc_txt = document.createTextNode(layer_metadata[layer_name].short_description);
+                let desc_txt = document.createTextNode(this.layer_metadata[layer_name].short_description);
                 p.appendChild(desc_txt);
                 li.appendChild(p);
-                a.addEventListener("click", this.make_select_layer_callback(layer_name));
+                a.addEventListener("click", this.make_add_layer_callback(layer_name));
                 ul.appendChild(li);
             }
         }
+    }
+
+    run_explore() {
+
     }
 
     bind() {
@@ -329,29 +556,38 @@ class DataViewer {
 
         });
 
-        $("#info_btn").on("click",
-            (evt) => {
-                this.info_modal.show();
-                evt.preventDefault();
-                evt.stopPropagation();
-            });
+        $("#add_layer_btn").get(0).addEventListener("click", (evt) => {
+            try {
+                this.run_explore();
+            } catch (e) {
+                console.error(e);
+            }
+            this.explore_datasets_modal.show();
+        });
+
+
     }
 
-    add_time_slider(step) {
+    add_time_slider() {
+        if (this.slider) {
+            this.remove_time_slider();
+        }
         $("#slider_div").get(0).innerHTML = "";
-        this.slider = new TimeSlider("slider_div", this.start_date, this.end_date, step);
+        this.slider = new TimeSlider("slider_div", this.start_date, this.end_date, "daily");
         window.addEventListener("resize", (evt) => {
             this.slider.resize();
         });
-        this.slider.addEventListener("change", (evt) => {
+        this.slider.addEventListener("change", async (evt) => {
             this.view_date = evt.target.value;
-            this.update_view_date();
+            await this.update_view_date();
         });
     }
 
     remove_time_slider() {
         document.getElementById("slider_div").innerHTML = "";
+        this.slider = null;
     }
+
 }
 
 
