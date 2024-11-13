@@ -1,0 +1,53 @@
+{
+  "layers": {
+    "analysed_sst": {
+        "variable": "analysed_sst",
+        "collection": "eocis-sst-cdrv3",
+        "cmap": "viridis",
+        "min": 0,
+        "max": 30,
+        "flip": "y",
+        "name": "Sea Surface Temperatures (STAC)",
+        "short_description": "Daily Sea Surface Temperature Estimates",
+        "units": "Degrees Centigrade",
+        "start_date": "2023-01-01",
+        "end_date": "2023-12-31",
+        "long_description": "This dataset provides daily estimates of global sea surface temperature (SST) based on observations from multiple satellite sensors.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
+        "step": "daily",
+        "offset": -273.15,
+        "projection": "EPSG:4326"
+    },
+    "analysed_sst_anomaly": {
+        "variable": "analysed_sst",
+        "collection": "eocis-sst-cdrv3",
+        "cmap": "coolwarm",
+        "min": -5,
+        "max": 5,
+        "flip": "y",
+        "climatology_path": "/home/dev/github/leaflet-client/data/sst_climatology/D{DOY}-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_CDR3.0-v02.0-fv01.0.nc",
+        "name": "Sea Surface Temperatures Anomaly (STAC)",
+        "short_description": "Daily Sea Surface Temperature Estimates",
+        "units": "Degrees Centigrade",
+        "start_date": "2023-01-01",
+        "end_date": "2023-12-31",
+        "long_description": "This dataset provides daily estimates of global sea surface temperature (SST) based on observations from multiple satellite sensors.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
+        "step": "daily",
+        "projection": "EPSG:4326"
+    }
+  },
+  "pending_layers": {
+    "land_cover": {
+        "variable": "land_cover",
+        "path": "/home/dev/github/xarray2pixels/data/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-LANDCOVER-MERGED-2023-fv1.1.nc",
+        "cmap": "viridis",
+        "min": 0,
+        "max": 23,
+        "flip": "y",
+        "aggfn": "mode"
+    }
+  },
+  "app": {
+    "HOST": "localhost",
+    "PORT": 9019
+  }
+}

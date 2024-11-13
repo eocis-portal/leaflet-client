@@ -1,4 +1,30 @@
 {
+  "analysed_sst_metadata_stac": {
+    "layer": "analysed_sst",
+    "name": "Sea Surface Temperatures (STAC)",
+    "short_description": "Daily Sea Surface Temperature Estimates",
+    "units": "Degrees Centigrade",
+    "start_date": "2023-01-01",
+    "end_date": "2023-12-31",
+    "long_description": "This dataset provides daily estimates of global sea surface temperature (SST) based on observations from multiple satellite sensors.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
+    "step": "daily",
+    "legend": "http://localhost:9019/legend?layers=analysed_sst",
+    "projection": "EPSG:4326",
+    "url": "http://localhost:9019/service"
+  },
+  "analysed_sst_anomaly_stac": {
+    "layer": "analysed_sst_anomaly",
+    "name": "Sea Surface Temperatures Anomaly (STAC)",
+    "short_description": "Daily Sea Surface Temperature Estimates",
+    "units": "Degrees Centigrade",
+    "start_date": "2023-01-01",
+    "end_date": "2023-12-31",
+    "long_description": "This dataset provides daily estimates of global sea surface temperature (SST) based on observations from multiple satellite sensors.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
+    "step": "daily",
+    "legend": "http://localhost:9019/legend?layers=analysed_sst_anomaly",
+    "projection": "EPSG:4326",
+    "url": "http://localhost:9019/service"
+  },
   "analysed_sst_metadata": {
     "layer": "analysed_sst",
     "name": "Sea Surface Temperatures",

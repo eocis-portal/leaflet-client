@@ -19,7 +19,7 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
     <script src="data_viewer.js"></script>
     <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
-    <link href="https://visualtopology.github.io/exo/versions/latest/exo.css" rel="stylesheet" type="text/css">
+    <!-- <link href="https://visualtopology.github.io/exo/versions/latest/exo.css" rel="stylesheet" type="text/css"> -->
     <link rel="icon" href="https://eocis.org/portal/images/cropped-Green-Globe-with-Greenland-e1686222767419-32x32.png"
           sizes="32x32"/>
     <link rel="icon"
@@ -71,21 +71,21 @@
             </div>
         </div>
     </nav>
+    <div id="layers">
+        <div id="layers_header" class="control_container_header">Layers<button type="button" id="layers_close_btn" class="btn-close btn-close-white" style="float:right;" aria-label="Close"></button></div>
+        <div id="layer_body" style="overflow-x: hidden; overflow-y: auto;">
+            <button id="add_layer_btn" class="btn btn-primary">Add Layer</button>
+            <div id="layer_column">
 
+            </div>
+        </div>
+    </div>
     <div id="map"></div>
     <p></p>
     <div id="slider_div" class="time_slider"></div>
 </div>
 
-<div id="layers" class="control_container">
-    <div id="layers_header" class="control_container_header">Layers<button type="button" id="layers_close_btn" class="btn-close btn-close-white" style="float:right;" aria-label="Close"></button></div>
-    <div id="layer_body" style="overflow-x: hidden; overflow-y: auto;">
-        <button id="add_layer_btn" class="btn btn-primary">Add Layer</button>
-        <div id="layer_column">
 
-        </div>
-    </div>
-</div>
 
 <div class="modal fade" id="search_results_modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
      aria-labelledby="staticBackdropLabel" aria-hidden="true">
@@ -168,11 +168,10 @@
 </div>
 
 
-
 <script type="text/javascript">
     window.addEventListener('load', async function () {
         $('#splash_modal').modal('show');
-        let dv = new DataViewer("https://eocis.org/wms","https://eocis.org/point/service/value","metadata.json");
+        let dv = new DataViewer();
         await dv.load_metadata();
         dv.init();
     });

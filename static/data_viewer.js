@@ -5,10 +5,11 @@ var popup = null;
 
 class DataViewer {
 
-    constructor(base_wms_url, point_service_base_url, metadata_url) {
-        this.base_wms_url = base_wms_url;
-        this.point_service_base_url = point_service_base_url;
-        this.metadata_url = metadata_url;
+    constructor() {
+        this.base_wms_url = "/wms_service";
+        this.point_service_base_url = "/point_service";
+        this.metadata_url = "/layers";
+        this.legend_url = "/legend";
 
         this.popup_latlng = null;
 
@@ -30,13 +31,10 @@ class DataViewer {
     }
 
     async load_metadata() {
-        await fetch(this.metadata_url).then(
-            r => r.json()
-        ).then(
-            o => {
-                this.layer_metadata = o
-            }
-        );
+        let r = await fetch(this.metadata_url);
+        let o = await r.json();
+
+        this.layer_metadata = o;
 
         for (var layer_name in this.layer_metadata) {
             this.projection = this.layer_metadata[layer_name].projection;
@@ -91,7 +89,6 @@ class DataViewer {
         }).addTo(map);
 
 
-
         this.search_results_modal = new bootstrap.Modal($('#search_results_modal').get(0), {
             keyboard: false
         });
@@ -100,20 +97,18 @@ class DataViewer {
            keyboard: false
         });
 
-        this.explore_datasets_modal = new bootstrap.Modal($('#explore_datasets_modal').get(0), {
-            keyboard: false
-        });
-
         this.bind();
-
-        setup_drag(document.getElementById("layers"),document.getElementById("layers_header"));
 
         document.getElementById("layers_close_btn").addEventListener("click", (evt) => {
             document.getElementById("layers").style.display = "none";
+            document.getElementById("map").style.left = "10px";
+            map.invalidateSize();
         });
 
         document.getElementById("layers_open_btn").addEventListener("click", (evt) => {
-            document.getElementById("layers").style.display = "block";
+            document.getElementById("layers").style.display = "flex";
+            document.getElementById("map").style.left = "420px";
+            map.invalidateSize();
         });
 
         popup = L.popup();
@@ -210,20 +205,20 @@ class DataViewer {
         this.start_date = null;
         this.end_date = null;
         // work out which (if any) layers have a time dimension
-        for(let layer_name in this.current_layers) {
+        this.current_layer_names.forEach(layer_name => {
             let layer_metadata = this.layer_metadata[layer_name];
             if (layer_metadata.start_date !== "") {
                 has_times = true;
             }
-        }
+        });
         this.remove_time_slider();
         if (has_times) {
             // set the start_date and end_date to the intersection of layer ranges
             // if the view date lies outside the start/end range, set it to the start or end (whichever is closest)
             let old_view_date = this.view_date;
-            for(let layer_name in this.current_layers) {
+            this.current_layer_names.forEach(layer_name => {
                 this.set_date_range(layer_name);
-            }
+            });
             this.add_time_slider();
             if (old_view_date !== this.view_date) {
                 this.update_view_date();
@@ -252,6 +247,7 @@ class DataViewer {
     }
 
     remove_layer(layer_name) {
+        this.current_layer_names = this.current_layer_names.filter((name) => name != layer_name);
         let layer = this.current_layers[layer_name];
         map.removeLayer(layer);
         delete this.current_layers[layer_name];
@@ -271,7 +267,7 @@ class DataViewer {
     }
 
     get_legend_url(layer_name) {
-        return this.base_wms_url+"?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetLegendGraphic&FORMAT=image%2Fpng&LAYER="+layer_name+"&SCALE=841.4360508601347";
+        return this.legend_url+"?layer="+layer_name;
     }
 
     add_layer(layer_name) {
@@ -281,6 +277,8 @@ class DataViewer {
         }
 
         let layer_metadata = this.layer_metadata[layer_name];
+        this.current_layer_names.push(layer_name);
+        this.update_time_controls();
 
         map.closePopup();
 
@@ -292,16 +290,21 @@ class DataViewer {
 
         this.current_popup_coordinate = null;
 
-        let wms_params = {'LAYERS': layer_metadata.layer, 'format':"image/png", 'version':'1.3.0'}
+        let wms_params = {
+            'layers': layer_name,
+            'format':"image/png",
+            'version':'1.3.0',
+            'TIME': this.view_date.toISOString()
+        }
 
         this.current_layers[layer_name] = L.tileLayer.wms(this.base_wms_url, wms_params).addTo(map);
-        this.current_layer_names.push(layer_name);
+
 
         let long_description = layer_metadata.long_description;
         const info = $('layer_info');
         info.innerHTML = long_description;
         this.layer_controls[layer_name] = this.add_layer_controls(layer_name, layer_metadata);
-        this.update_time_controls();
+
         this.update_history();
         if (this.popup_latlng) {
             this.update_popup(this.popup_latlng);
@@ -330,18 +333,14 @@ class DataViewer {
         let h = document.createElement("h6");
         h.appendChild(document.createTextNode(layer_metadata.name));
         d.appendChild(h);
+        if (layer_metadata.units) {
+            d.appendChild(document.createTextNode(layer_metadata.units));
+        }
         add_spacer(d);
 
         const legend_table_div = document.getElementById('legend_table_div');
 
-        if (layer_metadata.legend === "wms") {
-            let url = this.get_legend_url(layer_metadata.layer);
-            let legend_img = document.createElement("img");
-            legend_img.setAttribute("class","legend");
-            legend_img.style.display = "inline";
-            legend_img.setAttribute("src", url);
-            d.appendChild(legend_img);
-        } else if (layer_metadata.legend === "table") {
+        if (layer_metadata.legend === "table") {
             let legend_table = document.createElement("table");
 
             legend_table.innerHTML = "";
@@ -361,6 +360,29 @@ class DataViewer {
 
                 legend_table.appendChild(tr);
             }
+            d.appendChild(legend_table);
+        } else {
+            let url = this.get_legend_url(layer_name);
+            let legend_img = document.createElement("img");
+            legend_img.setAttribute("class", "legend");
+            legend_img.style.display = "inline";
+            legend_img.setAttribute("src", url);
+            let legend_table = document.createElement("table");
+            legend_table.style.display = "block";
+            let tr = document.createElement("tr");
+            let td0 = document.createElement("td");
+            td0.setAttribute("class","legend_min");
+            td0.appendChild(document.createTextNode(""+layer_metadata.min));
+            let td1 = document.createElement("td");
+            td1.setAttribute("class","legend_colourbar");
+            td1.appendChild(legend_img);
+            let td2 = document.createElement("td");
+            td2.setAttribute("class","legend_max");
+            td2.appendChild(document.createTextNode(""+layer_metadata.max));
+            tr.appendChild(td0);
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            legend_table.appendChild(tr);
             d.appendChild(legend_table);
         }
         add_spacer(d);
@@ -436,14 +458,13 @@ class DataViewer {
         let location = "";
         for(let layer_idx in this.current_layer_names) {
             let layer_name = this.current_layer_names[layer_idx];
-            let layer = this.layer_metadata[layer_name].layer;
             let name = this.layer_metadata[layer_name].name;
             let url = "";
             if (this.view_date) {
                 let dt_s = this.view_date.toISOString().split('T')[0];
-                url = this.point_service_base_url + "/" + layer + "/" + lat + ":" + lon + "/" + dt_s;
+                url = this.point_service_base_url + "/" + layer_name + "/" + lat + ":" + lon + "/" + dt_s;
             } else {
-                url = this.point_service_base_url + "/" + layer + "/" + lat + ":" + lon;
+                url = this.point_service_base_url + "/" + layer_name + "/" + lat + ":" + lon;
             }
 
             await fetch(url).then(r => r.text(), e => {
@@ -558,11 +579,11 @@ class DataViewer {
 
         $("#add_layer_btn").get(0).addEventListener("click", (evt) => {
             try {
-                this.run_explore();
+                this.search_results_modal.show();
+                this.run_search("");
             } catch (e) {
                 console.error(e);
             }
-            this.explore_datasets_modal.show();
         });
 
 
