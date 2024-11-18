@@ -5,11 +5,12 @@ var popup = null;
 
 class DataViewer {
 
-    constructor() {
-        this.base_wms_url = "/wms_service";
-        this.point_service_base_url = "/point_service";
-        this.metadata_url = "/layers";
-        this.legend_url = "/legend";
+    constructor(subset_name) {
+        this.subset_name = subset_name;
+        this.base_wms_url = "wms_service";
+        this.point_service_base_url = "point_service";
+        this.metadata_url = "layers";
+        this.legend_url = "legend";
 
         this.popup_latlng = null;
 
@@ -26,29 +27,36 @@ class DataViewer {
         this.layer_controls = {};
 
         this.slider = null;
-
         this.projection = "";
     }
 
     async load_metadata() {
-        let r = await fetch(this.metadata_url);
+        let r = await fetch(this.metadata_url+"/"+this.subset_name);
         let o = await r.json();
 
-        this.layer_metadata = o;
+        this.layer_metadata = o["layers"];
+        this.projection = o["projection"];
+        this.min_zoom = o["min_zoom"];
+        this.initial_zoom = o["initial_zoom"];
+        this.max_zoom = o["max_zoom"];
 
-        for (var layer_name in this.layer_metadata) {
-            this.projection = this.layer_metadata[layer_name].projection;
-            if (this.projection) {
-                break;
-            }
-        }
+        this.lon_min = o["lon_min"];
+        this.lon_max = o["lon_max"];
+        this.lat_min = o["lat_min"];
+        this.lat_max = o["lat_max"];
 
         if (this.projection === "EPSG:4326") {
             this.crs = L.CRS.EPSG4326;
-            this.bounds = [[-180,-90],[180,90]];
-            this.center = [0,0];
+
+
+            const lat_center = (this.lat_max+this.lat_min) / 2;
+            const lon_center = (this.lon_max+this.lon_min) / 2;
+
+            this.bounds = [[this.lon_min,this.lat_min],[this.lon_max,this.lat_max]];
+            this.center = [lon_center,lat_center];
+
         } else {
-            if ((!this.projection in custom_crs)) {
+            if (!(this.projection in custom_crs)) {
                 throw "Unknown projection: " + this.projection;
             }
 
@@ -68,17 +76,17 @@ class DataViewer {
                 this.transformCoords([ c.maxx, c.maxy ])
             ];
 
-            this.center = [51,-1];
+            this.center = c.center;
 
         }
 
         // Initialize the map.
         const mapOptions = {
             crs: this.crs,
-            minZoom: 0,
-            maxZoom: 9,
             center: this.center,
-            zoom: 3,
+            zoom: this.initial_zoom,
+            minZoom: this.min_zoom,
+            maxZoom: this.max_zoom,
             bounds: this.bounds
         };
 
@@ -207,7 +215,7 @@ class DataViewer {
         // work out which (if any) layers have a time dimension
         this.current_layer_names.forEach(layer_name => {
             let layer_metadata = this.layer_metadata[layer_name];
-            if (layer_metadata.start_date !== "") {
+            if (layer_metadata.start_date) {
                 has_times = true;
             }
         });
@@ -294,7 +302,14 @@ class DataViewer {
             'layers': layer_name,
             'format':"image/png",
             'version':'1.3.0',
-            'TIME': this.view_date.toISOString()
+            'transparent': true,
+            'bounds': L.latLngBounds([[this.lat_min, this.lon_min],[this.lat_max, this.lon_max]])
+        }
+
+        this.layer_controls[layer_name] = this.add_layer_controls(layer_name, layer_metadata);
+
+        if (this.view_date) {
+            wms_params['TIME'] = this.view_date.toISOString()
         }
 
         this.current_layers[layer_name] = L.tileLayer.wms(this.base_wms_url, wms_params).addTo(map);
@@ -303,7 +318,7 @@ class DataViewer {
         let long_description = layer_metadata.long_description;
         const info = $('layer_info');
         info.innerHTML = long_description;
-        this.layer_controls[layer_name] = this.add_layer_controls(layer_name, layer_metadata);
+
 
         this.update_history();
         if (this.popup_latlng) {
@@ -341,8 +356,8 @@ class DataViewer {
         const legend_table_div = document.getElementById('legend_table_div');
 
         if (layer_metadata.legend === "table") {
+            let legend_table_div = document.createElement("div");
             let legend_table = document.createElement("table");
-
             legend_table.innerHTML = "";
             legend_table_div.style.display = "block";
             let classes = layer_metadata.legend_classes.split(" ");
@@ -360,7 +375,8 @@ class DataViewer {
 
                 legend_table.appendChild(tr);
             }
-            d.appendChild(legend_table);
+            legend_table_div.appendChild(legend_table);
+            d.appendChild(legend_table_div);
         } else {
             let url = this.get_legend_url(layer_name);
             let legend_img = document.createElement("img");
@@ -403,7 +419,7 @@ class DataViewer {
         opacity_control.setAttribute("max","1.0");
         opacity_control.setAttribute("value","1.0");
 
-        opacity_control.addEventListener("change", this.create_opacity_callback(layer_name));
+        opacity_control.addEventListener("input", this.create_opacity_callback(layer_name));
 
         opacity_div.appendChild(opacity_label);
         opacity_div.appendChild(opacity_control);
@@ -555,10 +571,6 @@ class DataViewer {
                 ul.appendChild(li);
             }
         }
-    }
-
-    run_explore() {
-
     }
 
     bind() {

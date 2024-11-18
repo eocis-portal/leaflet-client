@@ -9,6 +9,8 @@ import datetime
 import numpy as np
 import io
 import math
+import pyproj
+from PIL import Image, ImageDraw
 
 from pystac_client import Client
 
@@ -22,14 +24,27 @@ cache_location = "cache"
 
 class DataLoader:
 
-    def __init__(self, cache_location, layer_definitions):
+    def __init__(self, cache_location, config):
+        self.logger = logging.getLogger("data_loader")
         self.cache_location = cache_location
-        self.layer_definitions = layer_definitions
+
+        self.config = config
+
+        # get a flattened list of all layers
+        self.layer_definitions = {}
+        for subset_name in self.config:
+            for layer_name in self.config[subset_name]["layers"]:
+                if layer_name in self.layer_definitions:
+                    raise Exception(f"layer {layer_name} appears in multiple subsets")
+                self.layer_definitions[layer_name] = self.config[subset_name]["layers"][layer_name]
+                self.layer_definitions[layer_name]["subset"] = subset_name
+                self.layer_definitions[layer_name]["projection"] = self.config[subset_name]["projection"]
+
         self.client = Client.open("https://api.stac.ceda.ac.uk")
         self.load_lock = Lock()
 
-    def get_layer_definitions(self):
-        return self.layer_definitions
+    def get_layer_definitions(self, subset_name):
+        return self.config[subset_name]
 
     def __open_dataarray_from_stac_item(self, item, variable):
         ref_url = ""
@@ -61,6 +76,9 @@ class DataLoader:
 
         return None
 
+    def decode_crs(self,projection):
+        return int(projection.split(":")[1])
+
     def get_dataarray(self, layer_name, date):
         layer_definition = self.layer_definitions[layer_name]
         collection = layer_definition.get("collection", None)
@@ -70,12 +88,21 @@ class DataLoader:
         da = None
 
         if path:
-            ds = xr.open_mfdataset([path])
-            da = ds[variable]
-            flip = self.layer_definitions[layer_name].get("flip","")
-            if flip:
-                da = da.isel(**{flip:slice(None, None, -1)})
-
+            if isinstance(path,str):
+                path = [path]
+            for p in path:
+                if date:
+                    yyyy = "%04d"%date.year
+                    mm = "%02d" % date.month
+                    dd = "%02d" % date.day
+                    p = p.replace("{YYYY}",yyyy).replace("{MM}",mm).replace("{DD}",dd)
+                if os.path.exists(p):
+                    ds = xr.open_mfdataset([p])
+                    da = ds[variable].squeeze()
+                    flip = self.layer_definitions[layer_name].get("flip","")
+                    if flip:
+                        da = da.isel(**{flip:slice(None, None, -1)})
+                    break
         elif collection:
 
             search = self.client.search(
@@ -102,6 +129,7 @@ class DataLoader:
         return da
 
     def get_legend(self, layer_name, width=300, height=30):
+
         vmin = self.layer_definitions[layer_name]["min"]
         vmax = self.layer_definitions[layer_name]["max"]
 
@@ -130,44 +158,63 @@ class DataLoader:
         return img_io
 
     def get_image(self, layer_name, dt, width, height, x_min, y_min, x_max, y_max):
-        minv = self.layer_definitions[layer_name]["min"]
-        maxv = self.layer_definitions[layer_name]["max"]
-        aggfn = self.layer_definitions[layer_name].get("aggfn","mean")
+        try:
+            minv = self.layer_definitions[layer_name]["min"]
+            maxv = self.layer_definitions[layer_name]["max"]
+            subset = self.layer_definitions[layer_name]["subset"]
+            clip_min = self.layer_definitions[layer_name].get("clip_min",None)
 
-        if aggfn == "mode":
-            agg = rd.mode
-        elif aggfn == "mean":
-            agg = rd.mean
-        elif aggfn == "first":
-            agg = rd.first
-        elif aggfn == "last":
-            agg = rd.last
-        elif aggfn == "sum":
-            agg = rd.sum
-        else:
-            raise Exception(f"Unknown aggregation function {aggfn}")
+            if subset == "chuk":
+                # TODO for some reason leaflet is sending x and y swapped for EPSG:27700
+                # workaround for now by swapping
+                x_min, y_min = (y_min, x_min)
+                x_max, y_max = (y_max, x_max)
+            aggfn = self.layer_definitions[layer_name].get("aggfn","mean")
 
-        da = self.get_dataarray(layer_name, dt)
+            if aggfn == "mode":
+                agg = rd.mode
+            elif aggfn == "mean":
+                agg = rd.mean
+            elif aggfn == "first":
+                agg = rd.first
+            elif aggfn == "last":
+                agg = rd.last
+            elif aggfn == "sum":
+                agg = rd.sum
+            else:
+                raise Exception(f"Unknown aggregation function {aggfn}")
 
-        if da is None:
-            raise Exception("Could not load data")
+            da = self.get_dataarray(layer_name, dt)
 
-        cvs = dsh.Canvas(plot_width=width, plot_height=height,
-                         x_range=(x_min, x_max),
-                         y_range=(y_min, y_max))
+            if da is None:
+                raise Exception("Could not load data")
 
+            if clip_min is not None:
+                da = da.where(da >= clip_min, np.nan)
 
-        agg = cvs.raster(da, agg=agg, interpolate='nearest')
+            cvs = dsh.Canvas(plot_width=width, plot_height=height,
+                             x_range=(x_min, x_max),
+                             y_range=(y_min, y_max))
 
-        shaded = tf.shade(agg, cmap=self.get_cmap(self.layer_definitions[layer_name]["cmap"]),
-                          how="linear",
-                          span=(minv, maxv))
+            agg = cvs.raster(da, agg=agg, interpolate='nearest')
 
-        p = shaded.to_pil()
-        img_io = BytesIO()
-        p.save(img_io, format="PNG")
-        img_io.seek(0)
-        return img_io
+            shaded = tf.shade(agg, cmap=self.get_cmap(self.layer_definitions[layer_name]["cmap"]),
+                              how="linear",
+                              span=(minv, maxv))
+
+            p = shaded.to_pil()
+            img_io = BytesIO()
+            p.save(img_io, format="PNG")
+            img_io.seek(0)
+            return img_io
+        except Exception as ex:
+            self.logger.exception(ex)
+            img = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+            img_io = BytesIO()
+            img.save(img_io, format="PNG")
+            img_io.seek(0)
+            return img_io
+
 
     def get_point_value(self, layer_name, y, x, dt: datetime.datetime = None):
 
@@ -175,11 +222,17 @@ class DataLoader:
 
         da = self.get_dataarray(layer_name, dt)
 
+        layer_definition = self.layer_definitions[layer_name]
+        crs = layer_definition["projection"]
+
         if da is not None:
-            layer_definition = self.layer_definitions[layer_name]
+
+            if crs != "EPSG:4326":
+                x,y = pyproj.transform("EPSG:4326",crs,x,y,always_xy=True)
 
             x_dim = layer_definition.get("x_dim", "lon")
             y_dim = layer_definition.get("y_dim", "lat")
+
             selector = {y_dim: y, x_dim: x, "method": "nearest"}
 
             if dt is not None:
@@ -192,7 +245,7 @@ class DataLoader:
                 v = None
 
         result = {}
-        crs = layer_definition.get("crs", "EPSG:4326")
+
         if crs == "EPSG:27700":
             result["location"] = f"northing={int(y)},easting={int(x)}"
         else:
@@ -218,18 +271,49 @@ class DataLoader:
                 cmap = json.loads(f.read())
                 colours = []
                 for cpoint in cmap:
-                    [r_frac,g_frac,b_frac] = cpoint
-                    colour = "#%2X%2X%2X" % (round(r_frac*255),round(g_frac*255),round(b_frac*255))
-                    colours.append(colour)
+                    if isinstance(cpoint,list):
+                        [r_frac,g_frac,b_frac] = cpoint
+                        colour = "#%2X%2X%2X" % (round(r_frac*255),round(g_frac*255),round(b_frac*255))
+                        colours.append(colour)
+                    else:
+                        colours.append(cpoint)
                 return colours
         else:
             raise Exception(f"colour map {name} not found")
+
+def merge(d1, d2):
+    # recursively merge configurations d1 and d2, give d2 priority
+    if d2 is None:
+        return d1
+    if d1 is None:
+        return d2
+    if isinstance(d1, list) and isinstance(d2, list):
+        return d1 + d2
+    if isinstance(d1, dict) and isinstance(d2, dict):
+        all_keys = list(set(list(d1.keys()) + list(d2.keys())))
+        merged = {}
+        for k in all_keys:
+            merged[k] = merge(d1.get(k, None), d2.get(k, None))
+        return merged
+    # fallback, ignore d1, return d2
+    return d2
+
+
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--override-config", help="Override settings in config.json from this file", default=None)
+args = parser.parse_args()
 
 config = None
 with open(os.path.join(os.path.split(__file__)[0],"config.json")) as f:
     config = json.loads(f.read())
 
-data_loader = DataLoader("cache",config["layers"])
+if args.override_config:
+    with open(os.path.join(os.path.split(__file__)[0], args.override_config)) as f:
+        override_config = json.loads(f.read())
+        config = merge(config, override_config)
+
+data_loader = DataLoader("cache",config["subsets"])
 
 app = Flask(__name__)
 
@@ -252,6 +336,12 @@ class App:
         return send_from_directory('../../../static', 'index.html')
 
     @staticmethod
+    @app.route('/', methods=['GET'])
+    @app.route('/index_chuk.html', methods=['GET'])
+    def fetch_chuk():
+        return send_from_directory('../../../static', 'index_chuk.html')
+
+    @staticmethod
     @app.route('/legend', methods=['GET'])
     def legend():
         layer = request.args.get("layer")
@@ -259,9 +349,9 @@ class App:
         return send_file(img, mimetype='image/png')
 
     @staticmethod
-    @app.route('/layers', methods=['GET'])
-    def layers():
-        response = jsonify(data_loader.get_layer_definitions())
+    @app.route('/layers/<string:subset_name>', methods=['GET'])
+    def layers(subset_name):
+        response = jsonify(data_loader.get_layer_definitions(subset_name))
         return response
 
     @staticmethod
@@ -271,24 +361,24 @@ class App:
         req = request.args.get("request")
         if service == "WMS" and req == "GetMap":
             layers = request.args.get("layers")
-            styles = request.args.get("styles")
-            format = request.args.get("format")
-            transparent = request.args.get("transparent")
-            version = request.args.get("version")
             width = int(request.args.get("width"))
             height = int(request.args.get("height"))
             srs = request.args.get("srs")
             bbox = request.args.get("bbox")
             time = request.args.get("TIME")
             dt = datetime.datetime.strptime(time[:16],"%Y-%m-%dT%H:%M") if time else None
-            print(service,req,layers,styles,format,transparent,version,width,height,srs,bbox,dt)
+
             coords = bbox.split(",")
             y_min = float(coords[0])
             x_min = float(coords[1])
             y_max = float(coords[2])
             x_max = float(coords[3])
-            img = data_loader.get_image(layers,dt,width,height,x_min,y_min,x_max,y_max)
-            return send_file(img, mimetype='image/png')
+            try:
+                img = data_loader.get_image(layers,dt,width,height,x_min,y_min,x_max,y_max)
+                return send_file(img, mimetype='image/png')
+            except Exception as ex:
+                print(ex)
+                abort(404)
         else:
             abort(404)
 
@@ -321,4 +411,7 @@ class App:
 if __name__ == '__main__':
     host = app.config.get("HOST", "0.0.0.0")
     port = app.config.get("PORT", 9019)
+    print(f"http://{host}:{port}/index.html")
+    print(f"http://{host}:{port}/index_chuk.html")
+    logging.basicConfig(level=logging.INFO)
     app.run(host=host,port=port,threaded=True)
