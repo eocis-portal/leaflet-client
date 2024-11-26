@@ -134,29 +134,52 @@ class DataViewer {
 
     init() {
         let sp = new URLSearchParams(location.search);
+        let state = {};
         if (sp.has("layer")) {
-            let names = sp.get("layer");
-            if (names) {
-                names = names.split(",");
-                this.select_layers(names);
-            }
+            state["layer"] = sp.get("layer");
         }
 
+        if (sp.has("view_date")) {
+            state["view_date"] = sp.get("view_date");
+        }
+
+        this.load_state(state);
+
         window.addEventListener("popstate", (evt) => {
-            if (history.state.layer) {
-                let names = history.state.layer.split(",");
-                this.clear_layers();
-                this.select_layers(names);
-            } else {
-                this.clear_layers();
-            }
+            this.load_state(history.state);
         });
+    }
+
+    load_state(state) {
+        if (state.layer) {
+            let names = state.layer.split(",");
+            this.clear_layers();
+            this.select_layers(names);
+        } else {
+            this.clear_layers();
+        }
+        if (state.view_date) {
+            this.view_date = this.string_to_date(state.view_date);
+            this.update_view_date();
+            this.slider.value = this.view_date;
+        }
     }
 
     update_history() {
         const url = new URL(window.location);
-        url.searchParams.set("layer", this.current_layer_names.join(","));
-        history.pushState({"layer": this.current_layer_names.join(",")}, "", url);
+        let state = {};
+        if (this.current_layer_names.length) {
+            let layer_names_str = this.current_layer_names.join(",");
+            url.searchParams.set("layer", layer_names_str);
+            state["layer"] = layer_names_str;
+        }
+        if (this.view_date) {
+            let view_date_str = this.date_to_string(this.view_date);
+            url.searchParams.set("view_date", view_date_str);
+            state["view_date"] = view_date_str;
+        }
+
+        history.pushState(state, "", url);
     }
 
     date_to_string(dt) {
@@ -181,20 +204,16 @@ class DataViewer {
         let end = this.layer_metadata[layer_name].end_date;
 
         if (start !== "") {
-            let start_date = new Date(Date.parse(start));
-            let end_date = new Date(Date.parse(end));
-
-            if (this.start_date === null || start_date >= this.start_date) {
+            let start_date = this.string_to_date(start);
+            if (this.start_date === null || start_date < this.start_date) {
                 this.start_date = start_date;
             }
-            if (this.end_date === null || end_date <= this.end_date) {
+        }
+
+        if (end !== "") {
+            let end_date = this.string_to_date(end);
+            if (this.end_date === null || end_date > this.end_date) {
                 this.end_date = end_date;
-            }
-            if (this.view_date === null || this.view_date > this.end_date) {
-                this.view_date = this.end_date;
-            }
-            if (this.view_date === null || this.view_date < this.start_date) {
-                this.view_date = this.start_date;
             }
         }
     }
@@ -221,16 +240,14 @@ class DataViewer {
         });
         this.remove_time_slider();
         if (has_times) {
-            // set the start_date and end_date to the intersection of layer ranges
-            // if the view date lies outside the start/end range, set it to the start or end (whichever is closest)
-            let old_view_date = this.view_date;
+            // set the start_date and end_date to the union of layer ranges
             this.current_layer_names.forEach(layer_name => {
                 this.set_date_range(layer_name);
             });
-            this.add_time_slider();
-            if (old_view_date !== this.view_date) {
-                this.update_view_date();
+            if (this.view_date == null) {
+                this.view_date = this.end_date;
             }
+            this.add_time_slider();
         }
     }
 
@@ -598,7 +615,6 @@ class DataViewer {
             }
         });
 
-
     }
 
     add_time_slider() {
@@ -613,6 +629,7 @@ class DataViewer {
         this.slider.addEventListener("change", async (evt) => {
             this.view_date = evt.target.value;
             await this.update_view_date();
+            this.update_history();
         });
     }
 

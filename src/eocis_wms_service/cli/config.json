@@ -12,9 +12,9 @@
       "layers": {
         "analysed_sst": {
           "variable": "analysed_sst",
-          "path": ["/data/esacci_sst/CDR_v3/Analysis/L4/v3.0.1/{YYYY}/{MM}/{DD}/{YYYY}{MM}{DD}120000-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR3.0-v02.0-fv01.0.nc",
+          "xpath": ["/data/esacci_sst/CDR_v3/Analysis/L4/v3.0.1/{YYYY}/{MM}/{DD}/{YYYY}{MM}{DD}120000-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR3.0-v02.0-fv01.0.nc",
                    "/data/esacci_sst/CDR_v3/Analysis/L4/v3.0.1/{YYYY}/{MM}/{DD}/{YYYY}{MM}{DD}120000-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_CDR3.0-v02.0-fv01.0.nc"],
-          "xcollection": "eocis-sst-cdrv3",
+          "collection": "eocis-sst-cdrv3",
           "cmap": "sst",
           "min": 0,
           "max": 32,
@@ -22,7 +22,7 @@
           "short_description": "Daily Sea Surface Temperature Estimates",
           "units": "Degrees Centigrade",
           "start_date": "1980-01-01",
-          "end_date": "2024-08-31",
+          "end_date": "2024-01-31",
           "long_description": "This dataset provides daily estimates of global sea surface temperature (SST) based on observations from multiple satellite sensors.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
           "step": "daily",
           "offset": -273.15,
@@ -30,9 +30,9 @@
         },
         "analysed_sst_anomaly": {
           "variable": "analysed_sst",
-          "path": ["/data/esacci_sst/CDR_v3/Analysis/L4/v3.0.1/{YYYY}/{MM}/{DD}/{YYYY}{MM}{DD}120000-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR3.0-v02.0-fv01.0.nc",
+          "xpath": ["/data/esacci_sst/CDR_v3/Analysis/L4/v3.0.1/{YYYY}/{MM}/{DD}/{YYYY}{MM}{DD}120000-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR3.0-v02.0-fv01.0.nc",
                    "/data/esacci_sst/CDR_v3/Analysis/L4/v3.0.1/{YYYY}/{MM}/{DD}/{YYYY}{MM}{DD}120000-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_CDR3.0-v02.0-fv01.0.nc"],
-          "xcollection": "eocis-sst-cdrv3",
+          "collection": "eocis-sst-cdrv3",
           "cmap": "coolwarm",
           "min": -5,
           "max": 5,
@@ -41,7 +41,7 @@
           "short_description": "Daily Sea Surface Temperature Estimates",
           "units": "Degrees Centigrade",
           "start_date": "1980-01-01",
-          "end_date": "2024-08-31",
+          "end_date": "2024-01-31",
           "long_description": "This dataset provides estimates of the difference between global sea surface temperature (SST) based on observations from multiple satellite sensors and the historical average value.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
           "step": "daily"
         }
@@ -120,5 +120,6 @@
   "app": {
     "HOST": "localhost",
     "PORT": 9019
-  }
+  },
+  "cache_folder": "/data/stac_cache"
 }

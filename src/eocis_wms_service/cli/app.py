@@ -1,3 +1,21 @@
+# MIT License
+#
+# Copyright (C) 2023-2024 National Centre For Earth Observation (NCEO)
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+# and associated documentation files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or
+# substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import json
 import logging
@@ -10,16 +28,35 @@ import numpy as np
 import io
 import math
 import pyproj
+import time
 from PIL import Image, ImageDraw
+from multiprocessing import Lock
 
 from pystac_client import Client
 
 import datashader as dsh
 import datashader.transfer_functions as tf
 from datashader import reductions as rd
-from threading import Lock
 
-cache_location = "cache"
+
+
+def merge(d1, d2):
+    # recursively merge configurations d1 and d2, give d2 priority
+    if d2 is None:
+        return d1
+    if d1 is None:
+        return d2
+    if isinstance(d1, list) and isinstance(d2, list):
+        return d1 + d2
+    if isinstance(d1, dict) and isinstance(d2, dict):
+        all_keys = list(set(list(d1.keys()) + list(d2.keys())))
+        merged = {}
+        for k in all_keys:
+            merged[k] = merge(d1.get(k, None), d2.get(k, None))
+        return merged
+    # fallback, ignore d1, return d2
+    return d2
+
 
 
 class DataLoader:
@@ -41,7 +78,7 @@ class DataLoader:
                 self.layer_definitions[layer_name]["projection"] = self.config[subset_name]["projection"]
 
         self.client = Client.open("https://api.stac.ceda.ac.uk")
-        self.load_lock = Lock()
+        self.cache_lock = Lock()
 
     def get_layer_definitions(self, subset_name):
         return self.config[subset_name]
@@ -55,24 +92,34 @@ class DataLoader:
             else:
                 filename = key+".nc"
 
+        if not ref_url and not filename:
+            self.logger.warning("Error reading stac item")
+            return None
+
+        cache_path = os.path.join(self.cache_location,variable,filename)
+        self.cache_lock.acquire()
         try:
-            cache_path = os.path.join(self.cache_location,filename)
-            self.load_lock.acquire()
             if not os.path.exists(cache_path):
+                cache_folder = os.path.join(self.cache_location,variable)
+                os.makedirs(cache_folder,exist_ok=True)
                 ds = xr.open_dataset("reference://", engine="zarr", backend_kwargs={
                    "consolidated": False,
                    "storage_options": {"fo": ref_url, "remote_protocol": "https", "remote_options": {}}
                 })
                 da = ds[variable].squeeze()
                 ds = xr.Dataset({variable:da})
-                ds.to_netcdf(cache_path)
-
+                ds.to_netcdf(cache_path,encoding={
+                    variable:{
+                        "zlib": True, "complevel": 5, "dtype": "float32", "chunksizes": [500, 500]
+                    }
+                })
             ds = xr.open_mfdataset(cache_path)
-
             da = ds[variable]
             return da
+        except Exception as ex:
+            self.logger.exception(f"loading cache {cache_path} for {variable}")
         finally:
-            self.load_lock.release()
+            self.cache_lock.release()
 
         return None
 
@@ -281,39 +328,21 @@ class DataLoader:
         else:
             raise Exception(f"colour map {name} not found")
 
-def merge(d1, d2):
-    # recursively merge configurations d1 and d2, give d2 priority
-    if d2 is None:
-        return d1
-    if d1 is None:
-        return d2
-    if isinstance(d1, list) and isinstance(d2, list):
-        return d1 + d2
-    if isinstance(d1, dict) and isinstance(d2, dict):
-        all_keys = list(set(list(d1.keys()) + list(d2.keys())))
-        merged = {}
-        for k in all_keys:
-            merged[k] = merge(d1.get(k, None), d2.get(k, None))
-        return merged
-    # fallback, ignore d1, return d2
-    return d2
-
-
-import argparse
-parser = argparse.ArgumentParser()
-parser.add_argument("--override-config", help="Override settings in config.json from this file", default=None)
-args = parser.parse_args()
 
 config = None
-with open(os.path.join(os.path.split(__file__)[0],"config.json")) as f:
+with open(os.path.join(os.path.split(__file__)[0], "config.json")) as f:
     config = json.loads(f.read())
 
-if args.override_config:
-    with open(os.path.join(os.path.split(__file__)[0], args.override_config)) as f:
+override_config_path = os.getenv("OVERRIDE_CONFIG_PATH","")
+if override_config_path:
+    with open(os.path.join(os.path.split(__file__)[0], override_config_path)) as f:
         override_config = json.loads(f.read())
         config = merge(config, override_config)
 
-data_loader = DataLoader("cache",config["subsets"])
+cache_folder = config["cache_folder"]
+os.makedirs(cache_folder, exist_ok=True)
+
+data_loader = DataLoader(cache_folder,config["subsets"])
 
 app = Flask(__name__)
 

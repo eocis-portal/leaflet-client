@@ -1,0 +1,36 @@
+{
+  "subsets": {
+    "global_and_regional": {
+      "layers": {
+        "analysed_sst": {
+          "xpath": "/home/dev/github/leaflet-client/src/eocis_wms_service/cli/cache/{YYYY}{MM}{DD}120000-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR3.0-v02.0-fv01.0.nc",
+          "collection": "eocis-sst-cdrv3",
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31"
+        },
+        "analysed_sst_anomaly": {
+          "xpath": "/home/dev/github/leaflet-client/src/eocis_wms_service/cli/cache/{YYYY}{MM}{DD}120000-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR3.0-v02.0-fv01.0.nc",
+          "collection": "eocis-sst-cdrv3",
+          "climatology_path": "/home/dev/github/leaflet-client/data/sst_climatology/D{DOY}-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_CDR3.0-v02.0-fv01.0.nc",
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31"
+        }
+      }
+    },
+    "chuk": {
+      "layers": {
+        "land_cover": {
+          "path": "/home/dev/github/xarray2pixels/data/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-LANDCOVER-MERGED-2023-fv1.1.nc"
+        },
+        "elevation": {
+          "path": "/home/dev/github/xarray2pixels/data/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-ELEVATION-MERGED-2023-fv1.0.nc"
+        }
+      }
+    }
+  },
+  "app": {
+    "HOST": "localhost",
+    "PORT": 9019
+  },
+  "cache_folder": "/home/dev/github/leaflet-client/stac_cache"
+}
