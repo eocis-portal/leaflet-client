@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (C) 2023-2024 National Centre For Earth Observation (NCEO)
+# Copyright (C) 2023-2025 National Centre For Earth Observation (NCEO)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 # and associated documentation files (the "Software"), to deal in the Software without
@@ -58,14 +58,15 @@ def merge(d1, d2):
     return d2
 
 
-
 class DataLoader:
 
     def __init__(self, cache_location, config):
         self.logger = logging.getLogger("data_loader")
         self.cache_location = cache_location
+        self.max_retries = 3
 
         self.config = config
+        self.cache_locks = {}
 
         # get a flattened list of all layers
         self.layer_definitions = {}
@@ -76,14 +77,18 @@ class DataLoader:
                 self.layer_definitions[layer_name] = self.config[subset_name]["layers"][layer_name]
                 self.layer_definitions[layer_name]["subset"] = subset_name
                 self.layer_definitions[layer_name]["projection"] = self.config[subset_name]["projection"]
+                self.cache_locks[layer_name] = Lock()
 
         self.client = Client.open("https://api.stac.ceda.ac.uk")
-        self.cache_lock = Lock()
 
     def get_layer_definitions(self, subset_name):
         return self.config[subset_name]
 
-    def __open_dataarray_from_stac_item(self, item, variable):
+    def __open_dataarray_from_stac_item(self, item, variable, layer_name):
+
+        layer_definition = self.layer_definitions[layer_name]
+        use_cache = layer_definition.get("cache",True)
+
         ref_url = ""
         filename = ""
         for (key, value) in item.assets.items():
@@ -97,29 +102,41 @@ class DataLoader:
             return None
 
         cache_path = os.path.join(self.cache_location,variable,filename)
-        self.cache_lock.acquire()
+        self.cache_locks[layer_name].acquire()
         try:
-            if not os.path.exists(cache_path):
-                cache_folder = os.path.join(self.cache_location,variable)
-                os.makedirs(cache_folder,exist_ok=True)
-                ds = xr.open_dataset("reference://", engine="zarr", backend_kwargs={
-                   "consolidated": False,
-                   "storage_options": {"fo": ref_url, "remote_protocol": "https", "remote_options": {}}
-                })
-                da = ds[variable].squeeze()
-                ds = xr.Dataset({variable:da})
-                ds.to_netcdf(cache_path,encoding={
-                    variable:{
-                        "zlib": True, "complevel": 5, "dtype": "float32", "chunksizes": [500, 500]
-                    }
-                })
-            ds = xr.open_mfdataset(cache_path)
-            da = ds[variable]
-            return da
-        except Exception as ex:
-            self.logger.exception(f"loading cache {cache_path} for {variable}")
+            retry=0
+            while True:
+                try:
+                    if not os.path.exists(cache_path):
+
+                        ds = xr.open_mfdataset(["reference://"], engine="zarr", backend_kwargs={
+                           "consolidated": False,
+                           "storage_options": {"fo": ref_url, "remote_protocol": "https", "remote_options": {}}
+                        })
+                        da = ds[variable].squeeze()
+                        if not use_cache:
+                            return da
+
+                        cache_folder = os.path.join(self.cache_location, variable)
+                        os.makedirs(cache_folder, exist_ok=True)
+                        ds = xr.Dataset({variable:da})
+                        ds.to_netcdf(cache_path,encoding={
+                            variable:{
+                                "zlib": True, "complevel": 5, "dtype": "float32", "chunksizes": [500, 500]
+                            }
+                        })
+                    ds = xr.open_mfdataset(cache_path)
+                    da = ds[variable]
+                    return da
+                except Exception as ex:
+                    self.logger.error(f"loading cache {cache_path} for {variable} retry {retry}: {str(ex)}")
+                    retry += 1
+                    if use_cache and os.path.exists(cache_path):
+                        os.remove(cache_path)
+                    if retry > self.max_retries:
+                        raise ex
         finally:
-            self.cache_lock.release()
+            self.cache_locks[layer_name].release()
 
         return None
 
@@ -157,22 +174,27 @@ class DataLoader:
                 datetime=(datetime.datetime(date.year,date.month,date.day,0,0,0),datetime.datetime(date.year,date.month,date.day,23,59,59))
             )
 
+            da = None
             for item in search.item_collection().items:
-                da = self.__open_dataarray_from_stac_item(item,variable)
+                if "platform" in layer_definition:
+                    if item.common_metadata.platform != layer_definition["platform"]:
+                        continue
+                da = self.__open_dataarray_from_stac_item(item,variable,layer_name)
+                break
 
         climatology_path = self.layer_definitions[layer_name].get("climatology_path",None)
         if da is not None and climatology_path:
             climatology_path = climatology_path.replace("{DOY}",f"{date.timetuple()[7]:03d}")
-            print(climatology_path)
             if os.path.exists(climatology_path):
                 climatology_da = xr.open_mfdataset([climatology_path])[variable].squeeze(drop=True)
                 da = da - climatology_da
 
-        else:
+        if da is not None:
             if "scale" in layer_definition:
                 da = da * layer_definition["scale"]
             if "offset" in layer_definition:
                 da = da + layer_definition["offset"]
+
         return da
 
     def get_legend(self, layer_name, width=300, height=30):
@@ -261,7 +283,6 @@ class DataLoader:
             img.save(img_io, format="PNG")
             img_io.seek(0)
             return img_io
-
 
     def get_point_value(self, layer_name, y, x, dt: datetime.datetime = None):
 

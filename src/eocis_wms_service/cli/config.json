@@ -29,6 +29,7 @@
           "projection": "EPSG:4326"
         },
         "analysed_sst_anomaly": {
+          "cache": false,
           "variable": "analysed_sst",
           "xpath": ["/data/esacci_sst/CDR_v3/Analysis/L4/v3.0.1/{YYYY}/{MM}/{DD}/{YYYY}{MM}{DD}120000-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR3.0-v02.0-fv01.0.nc",
                    "/data/esacci_sst/CDR_v3/Analysis/L4/v3.0.1/{YYYY}/{MM}/{DD}/{YYYY}{MM}{DD}120000-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_CDR3.0-v02.0-fv01.0.nc"],
@@ -44,6 +45,42 @@
           "end_date": "2024-01-31",
           "long_description": "This dataset provides estimates of the difference between global sea surface temperature (SST) based on observations from multiple satellite sensors and the historical average value.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
           "step": "daily"
+        },
+        "lst_3a": {
+          "cache": false,
+          "variable": "lst",
+          "platform": "Sentinel3A",
+          "collection": "eocis-lst-day",
+          "cmap": "coolwarm",
+          "min": -20,
+          "max": 50,
+          "name": "Land Surface Temperatures - Sentinel3A",
+          "short_description": "Daily Land Surface Temperature Estimates observed by Sentinel3A",
+          "units": "Degrees Centigrade",
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "long_description": "This dataset provides EOCIS land surface temperature daytime data.\n\nResolution: 5km.\n\n.Available from 2016 to current. <a href=\"https://eocis.org/dataset-land-surface-temperatures/\" target=\"_blank\">More Information</a>",
+          "step": "daily",
+          "offset": -273.15,
+          "projection": "EPSG:4326"
+        },
+        "lst_3b": {
+          "cache": false,
+          "variable": "lst",
+          "platform": "Sentinel3B",
+          "collection": "eocis-lst-day",
+          "cmap": "coolwarm",
+          "min": -20,
+          "max": 50,
+          "name": "Land Surface Temperatures - Sentinel3B",
+          "short_description": "Daily Land Surface Temperature Estimates observed by Sentinel3B",
+          "units": "Degrees Centigrade",
+          "start_date": "2022-01-01",
+          "end_date": "2022-12-31",
+          "long_description": "This dataset provides EOCIS land surface temperature daytime data.\n\nResolution: 5km.\n\n.Available from 2016 to current. <a href=\"https://eocis.org/dataset-land-surface-temperatures/\" target=\"_blank\">More Information</a>",
+          "step": "daily",
+          "offset": -273.15,
+          "projection": "EPSG:4326"
         }
       }
     },
@@ -113,6 +150,36 @@
           "aggfn": "mean",
           "flip": "y",
           "units": "metres"
+        },
+        "urban_area": {
+          "x_dim": "x",
+          "y_dim": "y",
+          "name": "Urban Area Fraction",
+          "short_description": "Fraction of 100m CHUK grid cells designated as urban",
+          "long_description": "Fraction of 100m CHUK grid cells with land cover designated as urban",
+          "variable": "urban_area",
+          "path": "/data/chuk/geospatial_information/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-BUILTAREA-MERGED-2023-fv1.1.nc",
+          "cmap": "viridis",
+          "min": 0,
+          "max": 1,
+          "aggfn": "mean",
+          "flip": "y",
+          "units": "fraction"
+        },
+        "suburban_area": {
+          "x_dim": "x",
+          "y_dim": "y",
+          "name": "Suburban Area Fraction",
+          "short_description": "Fraction of 100m CHUK grid cells designated as suburban",
+          "long_description": "Fraction of 100m CHUK grid cells with land cover designated as suburban",
+          "variable": "suburban_area",
+          "path": "/data/chuk/geospatial_information/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-BUILTAREA-MERGED-2023-fv1.1.nc",
+          "cmap": "viridis",
+          "min": 0,
+          "max": 1,
+          "aggfn": "mean",
+          "flip": "y",
+          "units": "fraction"
         }
       }
     }

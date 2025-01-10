@@ -331,6 +331,23 @@ class DataViewer {
 
         this.current_layers[layer_name] = L.tileLayer.wms(this.base_wms_url, wms_params).addTo(map);
 
+        this.current_layers[layer_name].on('loading', function (event) {
+            let ele = document.getElementById(layer_name+"_load_status");
+            if (ele) {
+                ele.style.display = "inline";
+            } else {
+                alert("missing");
+            }
+        });
+
+        this.current_layers[layer_name].on('load', function (event) {
+            let ele = document.getElementById(layer_name+"_load_status");
+            if (ele) {
+                ele.style.display = "none";
+            } else {
+                alert("missing");
+            }
+        });
 
         let long_description = layer_metadata.long_description;
         const info = $('layer_info');
@@ -365,6 +382,7 @@ class DataViewer {
         let h = document.createElement("h6");
         h.appendChild(document.createTextNode(layer_metadata.name));
         d.appendChild(h);
+
         if (layer_metadata.units) {
             d.appendChild(document.createTextNode(layer_metadata.units));
         }
@@ -455,7 +473,14 @@ class DataViewer {
         remove_button.setAttribute("class","btn btn-dark");
         remove_button.appendChild(document.createTextNode("Remove"));
         remove_button.addEventListener("click", this.create_remove_button_callback(layer_name));
+        remove_button.style.marginRight = "10px";
         d.appendChild(remove_button);
+
+        let loading_button = document.createElement("button");
+        loading_button.setAttribute("class","btn bg-warning");
+        loading_button.appendChild(document.createTextNode("Loading..."));
+        loading_button.setAttribute("id",layer_name+"_load_status");
+        d.appendChild(loading_button);
         return d;
     }
 
