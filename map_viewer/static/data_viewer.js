@@ -254,7 +254,10 @@ class DataViewer {
     select_layers(layer_names) {
         this.clear_layers();
         for(var idx=0; idx<layer_names.length; idx++) {
-            this.add_layer(layer_names[idx]);
+            let layer_name = layer_names[idx];
+            if (layer_name in this.layer_metadata && !this.layer_metadata[layer_name].disabled) {
+                this.add_layer(layer_name);
+            }
         }
     }
 
@@ -280,6 +283,14 @@ class DataViewer {
         controls.parentElement.removeChild(controls);
         delete this.layer_controls[layer_name];
         this.update_time_controls();
+        if (this.view_date < this.start_date) {
+            this.view_date = this.start_date;
+            this.slider.value = this.view_date;
+        }
+        if (this.view_date > this.end_date) {
+            this.view_date = this.end_date;
+            this.slider.value = this.view_date;
+        }
         this.update_history();
         map.closePopup();
     }
@@ -581,6 +592,9 @@ class DataViewer {
         let matching_layers = [];
         for (let layer_name in this.layer_metadata) {
             let metadata = this.layer_metadata[layer_name];
+            if (metadata.disabled) {
+                continue;
+            }
             ["name", "short_description", "long_description"].forEach(field => {
                 if (this.search_match(search_text, metadata[field])) {
                     if (!matching_layers.includes(layer_name)) {
@@ -647,7 +661,7 @@ class DataViewer {
             this.remove_time_slider();
         }
         $("#slider_div").get(0).innerHTML = "";
-        this.slider = new TimeSlider("slider_div", this.start_date, this.end_date, "daily");
+        this.slider = new TimeSlider("slider_div", this.start_date, this.end_date, this.view_date);
         window.addEventListener("resize", (evt) => {
             this.slider.resize();
         });

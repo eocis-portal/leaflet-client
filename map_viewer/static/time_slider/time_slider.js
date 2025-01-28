@@ -3,7 +3,7 @@ var time_slider_base_url = document.currentScript.src.split("/").slice(0,-1).joi
 
 class TimeSlider {
 
-    constructor(parent_id, start_date, end_date) {
+    constructor(parent_id, start_date, end_date, view_date) {
         this.parent = document.getElementById(parent_id);
         this.dec_btn = document.createElement("button");
         this.dec_btn_image = document.createElement("img");
@@ -14,7 +14,7 @@ class TimeSlider {
         this.date_input.setAttribute("type","date");
         this.date_input.setAttribute("min",start_date.toISOString().slice(0,10));
         this.date_input.setAttribute("max",end_date.toISOString().slice(0,10));
-        this.date_input.setAttribute("value",end_date.toISOString().slice(0,10));
+        this.date_input.setAttribute("value",view_date.toISOString().slice(0,10));
         this.parent.appendChild(this.date_input);
         this.inc_btn = document.createElement("button");
         this.inc_btn_image = document.createElement("img");
@@ -59,7 +59,15 @@ class TimeSlider {
         }
 
         this.width = 100;
-        this.current_value = end_date;
+        this.current_value = view_date;
+
+        // set the slider to the correct point
+        let t1 = this.start_date.getTime();
+        let t2 = this.end_date.getTime();
+        let t3 = this.current_value.getTime();
+        let initial_frac = (t3-t1)/(t2-t1);
+        this.slider.value = String(initial_frac);
+
         this.slider.addEventListener("change", (evt) => {
             let frac = Number.parseFloat(evt.target.value);
             const t1 = this.start_date.getTime();
