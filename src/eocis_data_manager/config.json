@@ -1,0 +1,195 @@
+{
+  "bundles": {
+    "sst": {
+      "name": "Sea Surface Temperatures",
+      "datasets": ["sst"],
+      "spec": {
+        "temporal_resolution": "daily",
+        "spatial_resolution": 0.05
+      }
+    },
+    "lst_s3a_day": {
+      "name": "Daytime Land Surface Temperatures (S3A)",
+      "datasets": ["lst_s3a_day"],
+      "spec": {
+        "temporal_resolution": "daily",
+        "spatial_resolution": 0.01
+      }
+    },
+    "lst_s3b_day": {
+      "name": "Daytime Land Surface Temperatures (S3B)",
+      "datasets": ["lst_s3b_day"],
+      "spec": {
+        "temporal_resolution": "daily",
+        "spatial_resolution": 0.01
+      }
+    },
+    "lst_s3a_night": {
+      "name": "Nighttime Land Surface Temperatures (S3A)",
+      "datasets": ["lst_s3a_night"],
+      "spec": {
+        "temporal_resolution": "daily",
+        "spatial_resolution": 0.01
+      }
+    },
+    "lst_s3b_night": {
+      "name": "Nighttime Land Surface Temperatures (S3B)",
+      "datasets": ["lst_s3b_night"],
+      "spec": {
+        "temporal_resolution": "daily",
+        "spatial_resolution": 0.01
+      }
+    }
+  },
+  "defaults": {
+     "global": {
+        "time_dimension": "time",
+        "x_coordinate": "lon",
+        "y_coordinate": "lat",
+        "x_dimension": "lon",
+        "y_dimension": "lat",
+        "x_min": -180,
+        "x_max": 180,
+        "y_min": -90,
+        "y_max": 90
+     }
+  },
+  "datasets": {
+    "sst": {
+      "defaults": "global",
+      "name": "Sea Surface Temperatures",
+      "short_description": "Daily Sea Surface Temperature Estimates",
+      "long_description": "This dataset provides daily estimates of global sea surface temperature (SST) based on observations from multiple satellite sensors.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
+      "temporal_resolution": "daily",
+      "spatial_resolution": 0.05,
+      "collection": "eocis-sst-cdrv3",
+      "version": "3.0",
+      "level": "L4",
+      "variables": {
+        "analysed_sst": {
+          "name": "Sea Surface Temperature",
+          "short_description": "Daily Sea Surface Temperature Estimates"
+        },
+        "analysed_sst_uncertainty": {
+          "name": "Sea Surface Temperature Uncertainty",
+          "short_description": "Daily Sea Surface Temperature Estimate Uncertainties"
+        },
+        "sea_ice_fraction": {
+          "name": "Sea Ice Fraction"
+        },
+        "sea_fraction": {
+          "name": "Sea Fraction"
+        },
+        "analysed_sst_anomaly": {
+          "name": "Sea Surface Temperatures Anomalies",
+          "short_description": "Daily Sea Surface Temperature Anomaly Estimates",
+          "long_description": "This dataset provides estimates of the difference between global sea surface temperature (SST) based on observations from multiple satellite sensors and the historical average value.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
+          "based_on_variable": "analysed_sst",
+          "climatology_path": "/data/esacci_sst/CDR_v3/Climatology/L4/v3.0.1/D{DOY}-ESACCI-L4_GHRSST-SSTdepth-Climatology-GLOB_CDR3.0-v02.0-fv01.0.nc"
+        }
+      }
+    },
+    "lst_s3a_day": {
+      "defaults": "global",
+      "name": "Daytime Land Surface Temperatures - Sentinel3A",
+      "long_description": "This dataset provides EOCIS land surface temperature daytime data.\n\nResolution: 5km.\n\n.Available from 2016 to current. <a href=\"https://eocis.org/dataset-land-surface-temperatures/\" target=\"_blank\">More Information</a>",
+      "temporal_resolution": "daily",
+      "spatial_resolution": 0.01,
+      "collection": "eocis-lst-s3a-day",
+      "version": "3.0",
+      "level": "L4",
+      "variables": {
+        "lst": {
+          "name": "Daytime Land Surface Temperatures - Sentinel3A",
+          "short_description": "Daily Daytime Land Surface Temperature Estimates observed by Sentinel3A"
+        }
+      }
+    },
+    "lst_s3b_day": {
+      "defaults": "global",
+      "name": "Daytime Land Surface Temperatures - Sentinel3B",
+      "long_description": "This dataset provides EOCIS land surface temperature daytime data.\n\nResolution: 5km.\n\n.Available from 2016 to current. <a href=\"https://eocis.org/dataset-land-surface-temperatures/\" target=\"_blank\">More Information</a>",
+      "temporal_resolution": "daily",
+      "spatial_resolution": 0.01,
+      "collection": "eocis-lst-s3b-day",
+      "version": "3.0",
+      "level": "L4",
+      "variables": {
+        "lst": {
+          "name": "Daytime Land Surface Temperatures - Sentinel3B",
+          "short_description": "Daily Daytime Land Surface Temperature Estimates observed by Sentinel3B"
+        }
+      }
+    },
+    "lst_s3a_night": {
+      "defaults": "global",
+      "name": "Nightime Land Surface Temperatures - Sentinel3A",
+      "long_description": "This dataset provides EOCIS land surface temperature nighttime data.\n\nResolution: 5km.\n\n.Available from 2016 to current. <a href=\"https://eocis.org/dataset-land-surface-temperatures/\" target=\"_blank\">More Information</a>",
+      "temporal_resolution": "daily",
+      "spatial_resolution": 0.01,
+      "collection": "eocis-lst-s3a-night",
+      "version": "3.0",
+      "level": "L4",
+      "variables": {
+        "lst": {
+          "name": "Nighttime Land Surface Temperatures - Sentinel3A",
+          "short_description": "Daily Nighttime Land Surface Temperature Estimates observed by Sentinel3A"
+        }
+      }
+    },
+    "lst_s3b_night": {
+      "defaults": "global",
+      "name": "Nighttime Land Surface Temperatures - Sentinel3B",
+      "long_description": "This dataset provides EOCIS land surface temperature nighttime data.\n\nResolution: 5km.\n\n.Available from 2016 to current. <a href=\"https://eocis.org/dataset-land-surface-temperatures/\" target=\"_blank\">More Information</a>",
+      "temporal_resolution": "daily",
+      "spatial_resolution": 0.01,
+      "collection": "eocis-lst-s3b-night",
+      "version": "3.0",
+      "level": "L4",
+      "variables": {
+        "lst": {
+          "name": "Nighttime Land Surface Temperatures - Sentinel3B",
+          "short_description": "Daily Nighttime Land Surface Temperature Estimates observed by Sentinel3B"
+        }
+      }
+    },
+    "chuk_elevation": {
+       "name": "Elevation",
+       "short_description": "UK Elevation Data",
+       "long_description": "Each UK 100m grid cell is assigned an elevation above sea level",
+       "path": "/data/chuk/geospatial_information/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-ELEVATION-MERGED-2023-fv1.0.nc",
+       "variables": {
+        "elevation" : {
+          "name": "Elevation"
+        }
+      }
+    },
+    "chuk_builtarea": {
+      "name": "UK Built Area Statistics",
+      "path": "/data/chuk/geospatial_information/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-BUILTAREA-MERGED-2023-fv1.1.nc",
+      "variables": {
+        "urban_area": {
+          "name": "Urban Area Fraction",
+          "short_description": "Fraction of 100m CHUK grid cells designated as urban",
+          "long_description": "Fraction of 100m CHUK grid cells with land cover designated as urban"
+        },
+        "suburban_area": {
+          "name": "Suburban Area Fraction",
+          "short_description": "Fraction of 100m CHUK grid cells designated as suburban",
+          "long_description": "Fraction of 100m CHUK grid cells with land cover designated as suburban"
+        }
+      }
+    },
+    "chuk_landcover": {
+      "name": "Land Cover",
+      "short_description": "UK Land Cover",
+      "long_description": "Each UK 100m grid cell is assigned a land cover type",
+      "variables": {
+        "land_cover": {
+          "name": "Land cover"
+        }
+      },
+      "path": "/data/chuk/geospatial_information/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-LANDCOVER-MERGED-2023-fv1.1.nc"
+    }
+  }
+}

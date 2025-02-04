@@ -21,6 +21,7 @@
 
 from uuid import uuid4
 import datetime
+import logging
 
 class Formatter:
     """
@@ -36,6 +37,7 @@ class Formatter:
         """
         self.output_folder = path
         self.uuid = str(uuid4())
+        self.logger = logging.getLogger("formatter")
 
 
     def write(self, dt, data, filename, variables):

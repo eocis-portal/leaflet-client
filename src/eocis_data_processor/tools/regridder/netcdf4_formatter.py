@@ -38,11 +38,19 @@ class NetCDF4Formatter(Formatter):
         """
         super().__init__(path)
 
-    def write(self,dt,data,filename,variable_names):
+    def calculate_chunk_sizes(self, ds, variable):
+        chunk_sizes = []
+        da = ds[variable]
+        shape = da.shape
+        for sz in shape:
+            chunk_sizes.append(min(1000,sz))
+        return chunk_sizes
+
+    def write(self,dt,ds,filename,variable_names):
         """
         Write an entry to the output file covering a time period
         :param dt: date
-        :param data: an xarray dataset
+        :param ds: an xarray dataset
         :param filename: the filename to write
         :param variable_names: list of variable names
         """
@@ -50,8 +58,12 @@ class NetCDF4Formatter(Formatter):
         encodings = {}
         for variable_name in variable_names:
             encodings[variable_name] = {"zlib": True, "complevel": 5, "dtype": "float32" }
-
-        data.to_netcdf(output_path, encoding=encodings)
+            chunksizes = self.calculate_chunk_sizes(ds,variable_name)
+            if chunksizes:
+                encodings[variable_name]["chunksizes"] = chunksizes
+        self.logger.info(f"writing {output_path}")
+        ds.to_netcdf(output_path, encoding=encodings)
+        self.logger.info(f"written {output_path}")
 
     def close(self):
         pass

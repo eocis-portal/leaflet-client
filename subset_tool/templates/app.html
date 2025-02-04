@@ -55,17 +55,17 @@
         <div class="row">
             <h2></h2>
             <p>
-                Obtain EOCIS datasets in your chosen spatial and temporal resolution and extent.
+                Obtain small extracts from EOCIS datasets in your chosen spatial and temporal extents.
             </p>
             <p>
-                You may use this page to request data from the <a href="https://eocis.org">EOCIS data store</a>.
+                You may use this page to request EOCIS data stored in the CEDA archive.
             </p>
             <p>
                 This service is supported by the National Centre for Earth Observation (<a target="_blank"
                                                                                            href="https://www.nceo.ac.uk">www.nceo.ac.uk</a>).
             </p>
             <p>
-               The dataset will be prepared in netcdf4, GeoTIFF or CSV format at the temporal and spatial resolution specified in the request form below.
+               The dataset will be prepared your chosen format (Netcdf4 or GeoTIFF).
             </p>
             <ol>
                 <li style="margin-left:20px;">Choose and enter a submitter reference.</li>
@@ -136,7 +136,7 @@
 
                     <table id="control_table">
                         <tr>
-                            <td><label class="mainlabel" for="bundle" id="bundle_label">Bundle Name</label></td>
+                            <td><label class="mainlabel" for="bundle" id="bundle_label">Dataset</label></td>
                             <td colspan="3">
                                 <select name="bundle" id="bundle">
                                 </select>
@@ -222,7 +222,7 @@
                         </tr>
 
                         <tr class="region_row">
-                            <td><label class="mainlabel" for="x_min" id="x_min_label">Min
+                            <td><label class="mainlabel" for="x_min" id="x_min_label">
                                 X coordinate (min)</label></td>
                             <td><input type="number" value="0" min="-180" max="180" step="any"
                                        id="x_min"/></td>
@@ -271,9 +271,11 @@
                     <p>
                         <input type="checkbox" id="consent" name="consent"/>
                         <label for="consent" id="consent_label">
-                            I agree to ... (License to be populated dependent on dataset)
+                            I agree to use this data in accordance with the data license(s): <span id="license_text"></span>
                         </label>
                     </p>
+                    <div id="citation_area">
+                    </div>
                 </fieldset>
                 <fieldset id="submit">
                     <legend>Submit Job</legend>

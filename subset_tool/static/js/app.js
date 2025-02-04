@@ -23,6 +23,7 @@ function removeValue(arr,v) {
 //     * retrieve list of jobs for a user
 
 class Form {
+
     constructor() {
 
         this.job_label = "";
@@ -30,7 +31,7 @@ class Form {
         // first bind elements in the page to member variables
 
         this.form = $("form");
-        var that = this;
+
         this.submitter_id = $("submitter_id");
         this.bundle = $("bundle");
         this.bundle.addEventListener("change", (evt) => {
@@ -42,10 +43,12 @@ class Form {
         this.dialog = $("dialog");
         this.dialog_content = $("dialog_content");
         this.dialog_content_close = $("dialog_content_close");
+        this.license_text = $("license_text");
+        this.citation_area = $("citation_area");
 
-        var dialog_closefn = function() {
-            that.dialog.setAttribute("style","display:none;");
-            that.dialog_content_close.blur();
+        var dialog_closefn = () => {
+            this.dialog.setAttribute("style","display:none;");
+            this.dialog_content_close.blur();
         }
 
         this.dialog_content_close.onkeydown = function(evt) {
@@ -113,9 +116,9 @@ class Form {
         // set up event handlers on most of the controls
         // the handlers will typically enable, reconfigure or disable other controls, or clear validity reports
 
-        this.consent.addEventListener("change", function() {
-           if (that.consent.checked) {
-                that.consent.setCustomValidity("");
+        this.consent.addEventListener("change", () => {
+           if (this.consent.checked) {
+                this.consent.setCustomValidity("");
             }
         });
 
@@ -123,55 +126,55 @@ class Form {
             this.updateExtentType();
         });
 
-        this.submitter_id.addEventListener("change", function() {
-            that.configureViewButton();
+        this.submitter_id.addEventListener("change", () => {
+            this.configureViewButton();
         });
 
-        this.y_min.addEventListener("change",function() {
-            that.updateBoundingBox();
+        this.y_min.addEventListener("change",() => {
+            this.updateBoundingBox();
         });
 
-        this.y_max.addEventListener("change",function() {
-            that.updateBoundingBox();
+        this.y_max.addEventListener("change",() => {
+            this.updateBoundingBox();
         });
 
-        this.x_min.addEventListener("change",function() {
-            that.updateBoundingBox();
+        this.x_min.addEventListener("change",() => {
+            this.updateBoundingBox();
         });
 
-        this.x_max.addEventListener("change",function() {
-            that.updateBoundingBox();
+        this.x_max.addEventListener("change",() => {
+            this.updateBoundingBox();
         });
 
         this.configureBoundingBoxMap();
 
 
         // the view button shows and hides a list of the user's jobs
-        this.view_btn.addEventListener('click', function(event) {
-            if (that.job_view_open) {
-                that.job_view_open = false;
-                that.closeJobList();
-                that.view_btn.innerHTML = "Show My Current Jobs";
+        this.view_btn.addEventListener('click', (event) => {
+            if (this.job_view_open) {
+                this.job_view_open = false;
+                this.closeJobList();
+                this.view_btn.innerHTML = "Show My Current Jobs";
             } else {
-                that.job_view_open = true;
-                that.openJobList();
-                that.refreshJobList();
-                that.view_btn.innerHTML = "Hide My Current Jobs";
+                this.job_view_open = true;
+                this.openJobList();
+                this.refreshJobList();
+                this.view_btn.innerHTML = "Hide My Current Jobs";
             }
         });
 
-        this.submit_btn.addEventListener('click', function(event) {
-            that.submitForm();
+        this.submit_btn.addEventListener('click', (event) => {
+            this.submitForm();
         });
 
-        this.refresh_btn.addEventListener('click', function(event) {
-            that.refreshJobList();
+        this.refresh_btn.addEventListener('click', (event) => {
+            this.refreshJobList();
         });
 
         this.configureViewButton();
 
-        setInterval(function() {
-            that.refreshJobList();
+        setInterval(() => {
+            this.refreshJobList();
         },600000);   // auto refresh job list every 10 minute
 
         this.loadBundles();
@@ -189,31 +192,95 @@ class Form {
             options.push([bundle.id, bundle.name]);
         });
         this.configureSelect("bundle",options, true,true);
-        this.bundleUpdated();
+
+        let sp = new URLSearchParams(location.search);
+        let dataset_id = undefined;
+        if (sp.has("dataset")) {
+            dataset_id = sp.get("dataset");
+            for(let idx=0; idx<bundle_list.length; idx++) {
+                if (bundle_list[idx].dataset_ids.includes(dataset_id)) {
+                    this.bundle.value = bundle_list[idx].id;
+                }
+            }
+        }
+
+        let bundle_init = {};
+
+
+        if (dataset_id && sp.has("variable")) {
+            bundle_init["variable"] = dataset_id+":"+sp.get("variable");
+        }
+
+        if (sp.has("start_date") && sp.has("end_date")) {
+            bundle_init["start_date"] = sp.get("start_date");
+            bundle_init["end_date"] = sp.get("end_date");
+        }
+
+        if (sp.has("min_x") && sp.has("min_y") && sp.has("max_x") && sp.has("max_y")) {
+            bundle_init["min_x"] = sp.get("min_x");
+            bundle_init["min_y"] = sp.get("min_y");
+            bundle_init["max_x"] = sp.get("max_x");
+            bundle_init["max_y"] = sp.get("max_y");
+        }
+
+        this.bundleUpdated(bundle_init);
     }
 
-    bundleUpdated() {
+    bundleUpdated(bundle_init) {
         let bundle_id = this.bundle.value;
-        this.loadBundle(bundle_id);
+        this.loadBundle(bundle_id, bundle_init);
     }
 
-    loadBundle(bundle_id) {
+    loadBundle(bundle_id, bundle_init) {
         fetch("data/metadata/bundles/"+bundle_id).then(r => r.json()).then(obj => {
-            this.setVariables(obj["variables"]);
+            if (bundle_init && bundle_init.variable) {
+                this.setVariables(obj["variables"], bundle_init.variable);
+            } else {
+                this.setVariables(obj["variables"]);
+            }
             // start_date end_date format is YYYY-MM-DD
             let start_date = new Date(obj["start_date"]);
             let end_date = new Date(obj["end_date"]);
             this.dt_picker.configure(start_date.getFullYear(),start_date.getMonth()+1, start_date.getDate(), end_date.getFullYear(), end_date.getMonth()+1, end_date.getDate(), "daily");
+
+            if (bundle_init && bundle_init.start_date && bundle_init.end_date) {
+                this.dt_picker.set_value(bundle_init.start_date, bundle_init.end_date);
+            }
+
+            if (bundle_init && bundle_init.min_y !== undefined && bundle_init.min_x !== undefined
+                && bundle_init.max_y !== undefined && bundle_init.max_x !== undefined) {
+                this.y_min.value = bundle_init.min_y;
+                this.x_min.value = bundle_init.min_x;
+                this.y_max.value = bundle_init.max_y;
+                this.x_max.value = bundle_init.max_x;
+                this.extent_type.value = "region";
+                this.updateExtentType();
+                this.updateBoundingBox();
+            }
+
+            this.license_text.innerText = obj["license"] || "";
+            if (obj["citations"]) {
+                obj["citations"].forEach((txt) => {
+                    let p = document.createElement("p");
+                    p.appendChild(document.createTextNode(txt));
+                    this.citation_area.appendChild(p);
+                });
+            }
         });
     }
 
-    setVariables(variable_list) {
+    setVariables(variable_list, selected_variable_id) {
         this.variables.innerHTML = "";
+        let index = 0;
         variable_list.forEach((variable) => {
             let elt = document.createElement("option");
-            elt.appendChild(document.createTextNode(variable.dataset_name+"/"+variable.variable_name));
+            elt.appendChild(document.createTextNode(variable.variable_name));
             elt.setAttribute("value",variable.id);
             this.variables.appendChild(elt);
+            if (variable.id === selected_variable_id) {
+                this.variables.selectedIndex = index;
+            }
+            index += 1;
         });
     }
 
@@ -303,7 +370,7 @@ class Form {
 
     refreshJobList() {
         if (this.job_view_open) {
-            var that = this;
+
             fetch('data/view.json',{
                 method: 'POST',
                 mode: 'same-origin',
@@ -318,7 +385,7 @@ class Form {
             }).then((response) => {
                 return response.json();
             }).then((data) => {
-                that.updateJobList(data);
+                this.updateJobList(data);
             });
         }
     }
@@ -423,16 +490,16 @@ class Form {
     }
 
     createViewParametersCallback(spec_html,btn,details,job_id) {
-        var that = this;
-        return function() {
-            if (that.job_parameters_open[job_id]) {
+
+        return () => {
+            if (this.job_parameters_open[job_id]) {
                 details.innerHTML = "";
                 btn.innerHTML = "Show Details";
             } else {
                 details.innerHTML = spec_html;
                 btn.innerHTML = "Hide Details";
             }
-            that.job_parameters_open[job_id] = !that.job_parameters_open[job_id];
+            this.job_parameters_open[job_id] = !this.job_parameters_open[job_id];
         }
     }
 
@@ -475,14 +542,14 @@ this.makeTwoDigits(""+d.getHours()) + ":" + this.makeTwoDigits(""+d.getMinutes()
         img_ele.setAttribute("src","data/images/help.svg");
         img_ele.setAttribute("tabindex","0");
 
-        var that = this;
-        var openfn = function(evt) {
+
+        var openfn = (evt) => {
              var rect = img_ele.getBoundingClientRect();
              var style = "display:block;position:fixed;left:"+rect.left+";top:"+rect.top+";";
-             that.dialog.setAttribute("style",style);
-             that.dialog_content.innerHTML = "";
-             that.dialog_content.appendChild(document.createTextNode(help_text));
-             that.dialog_content_close.focus();
+             this.dialog.setAttribute("style",style);
+             this.dialog_content.innerHTML = "";
+             this.dialog_content.appendChild(document.createTextNode(help_text));
+             this.dialog_content_close.focus();
              if (evt) {
                 evt.stopPropagation();
                 evt.preventDefault();
@@ -556,7 +623,7 @@ this.makeTwoDigits(""+d.getHours()) + ":" + this.makeTwoDigits(""+d.getMinutes()
         if (this.alerted_controls.includes(control)) {
             control.setCustomValidity("");
             control.reportValidity();
-            removeValue(that.alerted_controls,control);
+            removeValue(this.alerted_controls,control);
         }
     }
 
@@ -633,8 +700,6 @@ this.makeTwoDigits(""+d.getHours()) + ":" + this.makeTwoDigits(""+d.getMinutes()
         // check that the form values are valid
         // then dispatch a submission request to the service
 
-        var that = this;
-
         let start_date = this.dt_picker.get_start_date();
         let end_date = this.dt_picker.get_end_date();
 
@@ -683,7 +748,7 @@ this.makeTwoDigits(""+d.getHours()) + ":" + this.makeTwoDigits(""+d.getMinutes()
                 var message = data["message"];
                 alert(message); // could do this more nicely with a modal than an alert
                 // refresh the job list now so the new job shows up (if the job list is open)
-                that.refreshJobList();
+                this.refreshJobList();
             });
         }
     }

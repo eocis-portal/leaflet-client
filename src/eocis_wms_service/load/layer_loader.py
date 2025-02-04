@@ -29,7 +29,8 @@ import math
 import pyproj
 from PIL import Image
 
-from eocis_data_provider.data_loader import DataLoader
+from eocis_data_manager.data_schema import DataSchema
+from eocis_data_manager.data_loader import DataLoader
 
 import datashader as dsh
 import datashader.transfer_functions as tf
@@ -37,11 +38,14 @@ from datashader import reductions as rd
 
 class LayerLoader:
 
-    def __init__(self, config):
+    def __init__(self, data_config_path, viewer_config_path, scratch_area):
         self.logger = logging.getLogger("layer_loader")
-        self.data_loader = DataLoader(config["datasets"], config["bundles"])
-        self.data_loader.load()
-        self.config = config["viewer"]
+        self.data_schema = DataSchema(data_config_path)
+        self.data_loader = DataLoader(dataset_schema=self.data_schema, scratch_area=scratch_area)
+
+        with open(viewer_config_path) as f:
+            self.config = json.loads(f.read())
+
         # get a flattened list of all layers
         self.layer_definitions = {}
         for subset_name in self.config:
@@ -55,15 +59,19 @@ class LayerLoader:
                 layer["subset"] = subset_name
                 layer["projection"] = self.config[subset_name]["projection"]
                 dataset_id = layer["dataset"]
-                variable_name = layer["variable"]
-                dataset = config["datasets"][dataset_id]
-                if "time_axis" in dataset:
-                    layer["start_date"] = dataset["start_date"]
-                    layer["end_date"] = dataset["end_date"]
-                variable = dataset["variables"][variable_name]
-                for attribute in ["name","short_description","long_description"]:
-                    if attribute not in layer:
-                        layer[attribute] = variable.get(attribute,dataset.get(attribute,""))
+                variable_id = layer["variable"]
+                dataset = self.data_schema.get_dataset(dataset_id)
+                if dataset.start_date is not None:
+                    layer["start_date"] = dataset.start_date.strftime("%Y-%m-%d")
+                if dataset.end_date is not None:
+                    layer["end_date"] = dataset.end_date.strftime("%Y-%m-%d")
+                variable = dataset.get_variable(variable_id)
+                if "name" not in layer:
+                    layer["name"] = variable.variable_name
+                if "short_description" not in layer:
+                    layer["short_description"] = variable.short_description
+                if "long_description" not in layer:
+                    layer["long_description"] = variable.long_description
 
     def get_layer_definitions(self, subset_name):
         return self.config[subset_name]
@@ -180,7 +188,7 @@ class LayerLoader:
         variable = self.layer_definitions[layer_name]["variable"]
         v = None
 
-        da = self.get_dataarray(dataset, variable, dt)
+        da = self.get_dataarray(layer_name, dt)
 
         layer_definition = self.layer_definitions[layer_name]
         crs = layer_definition["projection"]

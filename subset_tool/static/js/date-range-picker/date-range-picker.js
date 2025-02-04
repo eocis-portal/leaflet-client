@@ -89,6 +89,26 @@ class date_range_picker {
         this.callback_fn = callback_fn;
     }
 
+    set_value(start_date, end_date) {
+        this.start_year = Number.parseInt(start_date.slice(0,4));
+        this.start_month = Number.parseInt(start_date.slice(5,7));
+        this.start_day = Number.parseInt(start_date.slice(8,10));
+
+        this.end_year = Number.parseInt(end_date.slice(0,4));
+        this.end_month = Number.parseInt(end_date.slice(5,7));
+        this.end_day = Number.parseInt(end_date.slice(8,10));
+
+        this.start_date_year.value = String(this.start_year);
+        this.start_date_month.value = String(this.start_month);
+        this.start_date_day.value = String(this.start_day);
+
+        this.end_date_year.value = String(this.end_year);
+        this.end_date_month.value = String(this.end_month);
+        this.end_date_day.value = String(this.end_day);
+
+        this.refresh();
+    }
+
     bind_controls() {
 
         this.start_date_year.addEventListener("change",(evt) => {

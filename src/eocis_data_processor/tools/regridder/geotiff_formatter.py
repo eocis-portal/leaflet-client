@@ -46,7 +46,7 @@ class GeotiffFormatter(Formatter):
         """
         fileroot = os.path.splitext(filename)[0]
         for variable_name in variable_names:
-            filename = fileroot+"-"+variable_name+".geotiff"
+            filename = fileroot+"-"+variable_name+".tif"
             output_path = os.path.join(self.output_folder,filename)
             da = data[variable_name]
             if "grid_mapping" in da.attrs:

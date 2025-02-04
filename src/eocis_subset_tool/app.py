@@ -85,10 +85,18 @@ class App:
         """Handle submitted form.  Perform server side validation and add a new job into the database."""
         try:
             # create a job
+            o = copy.deepcopy(request.json)
+            job = Job.create(o)
+
+            # check the size of the job
+            pixel_count = data_schema.compute_size(job)
+            max_pixel_count = app.config["MAX_JOB_PIXELS"]
+            if pixel_count > max_pixel_count:
+                msg = f"Your job would generate {pixel_count} pixels, the maximum allowed is {max_pixel_count}. Plese reduce the time or area or number of variables and re-submit"
+                return jsonify({"message": msg})
+
+            # schedule the job
             with JobOperations(store) as t:
-                o = copy.deepcopy(request.json)
-                o["CONFIG_PATH"] = app.config["DATA_CONFIGURATION_PATH"]
-                job = Job.create(o)
                 t.create_job(job)
                 job_id = job.get_job_id()
 
@@ -146,7 +154,7 @@ class App:
     def get_bundles():
         bundles = []
         for b in data_schema.get_bundles():
-            bundles.append({"id": b.bundle_id, "name": b.bundle_name, "spec":b.spec})
+            bundles.append({"id": b.bundle_id, "name": b.bundle_name, "spec":b.spec, "dataset_ids":b.dataset_ids})
         return jsonify(bundles)
 
     @staticmethod
@@ -161,6 +169,8 @@ class App:
         start_date = None
         end_date = None
         variables = []
+        licenses = set()
+        citations = []
         for ds_id in bundle.dataset_ids:
             ds = data_schema.get_dataset(ds_id)
             for variable in ds.variables:
@@ -170,10 +180,16 @@ class App:
                     start_date = ds.start_date
                 if end_date is None or ds.end_date > end_date:
                     end_date = ds.end_date
+            if ds.license:
+                licenses.add(ds.license)
+            if ds.citation:
+                citations.append(ds.citation)
 
         return jsonify({"variables":variables,
                         "start_date": start_date.strftime("%Y-%m-%d"),
-                        "end_date": end_date.strftime("%Y-%m-%d")})
+                        "end_date": end_date.strftime("%Y-%m-%d"),
+                        "license": ", ".join(licenses),
+                        "citations": citations })
 
     @staticmethod
     @app.route('/data/metadata/bundles/<bundle_id>', methods=['GET'])

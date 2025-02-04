@@ -23,13 +23,13 @@ import copy
 import os
 import logging
 import zipfile
+import json
 
 from .store import Store
 from .job_operations import JobOperations
 from .data_schema import DataSchema
 from .task import Task
 from .config import Config
-
 
 class JobManager:
     """Perform various job management tasks"""
@@ -41,6 +41,8 @@ class JobManager:
         """
         self.store = store
         self.logger = logging.getLogger("JobManager")
+
+
 
     def create_tasks(self, job_id:str, data_configuration_path:str):
         """
@@ -66,48 +68,55 @@ class JobManager:
             for (dataset_id, variable_id) in variables:
                 dataset_ids.add(dataset_id)
 
-            for task_dataset_id in dataset_ids:
-                task_variables = []
+            data_spec = {}
 
+            for task_dataset_id in dataset_ids:
+                dataset_variables = []
                 for (dataset_id, variable_id) in variables:
                     if dataset_id == task_dataset_id:
-                        task_variables.append(variable_id)
+                        dataset_variables.append(variable_id)
+                data_spec[task_dataset_id] = dataset_variables
 
-                # create a task to compute the results for each year that the job includes
-                for year in range(start_year, end_year+1):
-                    # build a specification for this task
-                    task_spec = copy.deepcopy(job_spec)
-                    # if not the first year in the job, include data from January 1st
-                    if year > start_year:
-                        task_spec["START_MONTH"] = "1"
-                        task_spec["START_DAY"] = "1"
-                    # if not the last year in the job, include data up to December 31st
-                    if year < end_year:
-                        task_spec["END_MONTH"] = "12"
-                        task_spec["END_DAY"] = "31"
-                    task_spec["CONFIG_PATH"] = data_configuration_path
-                    task_spec["VARIABLES"] = task_variables
-                    task_spec["DATASET_ID"] = task_dataset_id
-                    task_spec["OUT_PATH"] = os.path.join(output_path, str(year))
-                    task_spec["START_YEAR"] = task_spec["END_YEAR"] = str(year)
-                    task_spec["OUTPUT_FORMAT"] = job_spec["OUTPUT_FORMAT"]
+            data_spec_path = os.path.join(output_path,"datasets.json")
+            with open(data_spec_path,"w") as f:
+                f.write(json.dumps(data_spec))
 
-                    if "Y_MIN" in job_spec:
-                        task_spec["Y_MIN"] = job_spec["Y_MIN"]
-                    if "Y_MAX" in job_spec:
-                        task_spec["Y_MAX"] = job_spec["Y_MAX"]
-                    if "X_MIN" in job_spec:
-                        task_spec["X_MIN"] = job_spec["X_MIN"]
-                    if "X_MAX" in job_spec:
-                        task_spec["X_MAX"] = job_spec["X_MAX"]
+            # create a task to compute the results for each year that the job includes
+            for year in range(start_year, end_year+1):
+                # build a specification for this task
+                task_spec = copy.deepcopy(job_spec)
+                # if not the first year in the job, include data from January 1st
+                if year > start_year:
+                    task_spec["START_MONTH"] = "1"
+                    task_spec["START_DAY"] = "1"
+                # if not the last year in the job, include data up to December 31st
+                if year < end_year:
+                    task_spec["END_MONTH"] = "12"
+                    task_spec["END_DAY"] = "31"
 
-                    # create a new task
-                    task = Task.create(task_spec,job_id)
-                    # persist it
-                    jo.create_task(task)
-                    # queue for execution
-                    jo.queue_task(job_id, task.get_task_name())
-                    self.logger.info(f"Created task {task.get_task_name()} for job {job_id}")
+                task_spec["CONDA_PATH"] = Config.CONDA_PATH
+                task_spec["DATA_SPEC_PATH"] = data_spec_path
+
+                task_spec["OUT_PATH"] = os.path.join(output_path, str(year))
+                task_spec["START_YEAR"] = task_spec["END_YEAR"] = str(year)
+                task_spec["OUTPUT_FORMAT"] = job_spec["OUTPUT_FORMAT"]
+
+                if "Y_MIN" in job_spec:
+                    task_spec["Y_MIN"] = job_spec["Y_MIN"]
+                if "Y_MAX" in job_spec:
+                    task_spec["Y_MAX"] = job_spec["Y_MAX"]
+                if "X_MIN" in job_spec:
+                    task_spec["X_MIN"] = job_spec["X_MIN"]
+                if "X_MAX" in job_spec:
+                    task_spec["X_MAX"] = job_spec["X_MAX"]
+
+                # create a new task
+                task = Task.create(task_spec,job_id)
+                # persist it
+                jo.create_task(task)
+                # queue for execution
+                jo.queue_task(job_id, task.get_task_name())
+                self.logger.info(f"Created task {task.get_task_name()} for job {job_id}")
 
     def zip_results(self, task:Task) -> str:
         """

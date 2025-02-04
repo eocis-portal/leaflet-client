@@ -42,10 +42,7 @@ class TaskRunner:
         :return: True iff the task succeeded
         """
         name = task.get_task_name()
-        config_path = task.get_spec()["CONFIG_PATH"]
-        with open(config_path) as f:
-            config = json.loads(f.read())
-        conda_path = config["conda_path"]
+        conda_path = task.get_spec()["CONDA_PATH"]
 
         env = {
             "CONDA_PATH": conda_path,

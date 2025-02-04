@@ -21,42 +21,25 @@ import logging
 import os
 import xarray as xr
 import datetime
+import copy
 
-from multiprocessing import Lock
 from pystac_client import Client
+from .data_importer import DataImporter
+from .dataset import DataSet
 
 class DataLoader:
 
-    def __init__(self, dataset_config, bundle_config):
+    def __init__(self, dataset_schema, scratch_area):
         self.logger = logging.getLogger("data_loader")
-
         self.max_retries = 3
-
-        self.dataset_config = dataset_config
-        self.bundle_config = bundle_config
-
+        self.dataset_schema = dataset_schema
+        self.scratch_area = scratch_area
         self.client = Client.open("https://api.stac.ceda.ac.uk")
 
-    def get_dataset_config(self):
-        return self.dataset_config
-
-    def get_bundle_config(self):
-        return self.bundle_config
-
-    def load(self):
-        for dataset_id in self.dataset_config:
-            dataset = self.dataset_config[dataset_id]
-
-            if "time_axis" in dataset:
-                (start_dt,end_dt) = self.get_date_range(dataset_id)
-                dataset["start_date"] = start_dt.strftime("%Y-%m-%d")
-                dataset["end_date"] = end_dt.strftime("%Y-%m-%d")
-
-    def get_dataset_definition(self, dataset_id):
-        return self.dataset_config[dataset_id]
+    def get_stac_client(self):
+        return self.client
 
     def __open_dataset_from_stac_item(self, item, dataset_id):
-
         ref_url = ""
         filename = ""
         for (key, value) in item.assets.items():
@@ -72,10 +55,12 @@ class DataLoader:
         retry=0
         while True:
             try:
+                self.logger.info("opening dataset: "+ref_url)
                 ds = xr.open_mfdataset(["reference://"], engine="zarr", backend_kwargs={
                    "consolidated": False,
                    "storage_options": {"fo": ref_url, "remote_protocol": "https", "remote_options": {}}
                 })
+                self.logger.info("opened dataset: " + ref_url)
                 return (ds, filename)
             except Exception as ex:
                 self.logger.error(f"loading {dataset_id} retry {retry}: {str(ex)}")
@@ -88,30 +73,18 @@ class DataLoader:
     def decode_crs(self,projection):
         return int(projection.split(":")[1])
 
-    def get_date_range(self, dataset_id):
-        dataset = self.get_dataset_definition(dataset_id)
-        collection_id = dataset.get("collection", None)
-        collection = self.client.get_collection(collection_id)
-        start_dt = collection.extent.temporal.intervals[0][0]
-        end_dt = collection.extent.temporal.intervals[-1][1]
-        return (start_dt, end_dt)
-
-    def get_item_dates(self, dataset_id, start_date, end_date):
-        dataset = self.get_dataset_definition(dataset_id)
-        collection = dataset.get("collection", None)
+    def get_item_dates(self, dataset:DataSet, start_date, end_date):
         search = self.client.search(
             limit=None,
-            collections=[collection],
+            collections=[dataset.collection],
             datetime=(datetime.datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0),
                       datetime.datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59))
         )
 
         dts = []
         for item in search.item_collection().items:
-            if "platform" in dataset:
-                if item.common_metadata.platform != dataset["platform"]:
-                    continue
             dts.append(item.datetime)
+
         return dts
 
     def get_dataarray(self, dataset_id, variable, date):
@@ -119,30 +92,35 @@ class DataLoader:
         da = ds[variable].squeeze()
         return da
 
-    def get_dataset(self, dataset_id, variables, date):
-        dataset = self.get_dataset_definition(dataset_id)
-        collection = dataset.get("collection", None)
-        path = dataset.get("path", None)
+    def download_dataset(self, dataset_id, ds, variables):
+        dataset = self.dataset_schema.get_dataset(dataset_id)
+        if dataset.collection:
+            importer = DataImporter(ds, variables, folder=self.scratch_area)
+            imported_ds = importer.import_dataset()
+            return imported_ds, importer
+        else:
+            return ds, None
 
+    def get_dataset(self, dataset_id, variables, date):
+        dataset = self.dataset_schema.get_dataset(dataset_id)
         base_variables = []
         anomaly_variables = []
-        for variable in variables:
-            climatology_path = dataset["variables"][variable].get("climatology_path", None)
-            if climatology_path:
-                based_on_variable = dataset["variables"][variable].get("based_on_variable", None)
-                if based_on_variable not in base_variables:
-                    base_variables.append(based_on_variable)
-                anomaly_variables.append((variable,based_on_variable,climatology_path))
+        for variable_id in variables:
+            variable = dataset.get_variable(variable_id)
+            if variable.climatology_path:
+                if variable.based_on_variable not in base_variables:
+                    base_variables.append(variable.based_on_variable)
+                anomaly_variables.append((variable_id,variable.based_on_variable,variable.climatology_path))
             else:
-                base_variables.append(variable)
+                base_variables.append(variable_id)
 
         ds = None
         filename = None
 
-        if path:
-
-            if isinstance(path,str):
-                path = [path]
+        if dataset.path:
+            path = dataset.path
+            if isinstance(dataset.path,str):
+                path = [dataset.path]
             for p in path:
                 if date:
                     yyyy = "%04d"%date.year
@@ -154,17 +132,14 @@ class DataLoader:
                     ds = xr.open_mfdataset([p])
                     break
 
-        elif collection:
+        elif dataset.collection:
 
             search = self.client.search(
-                collections=[collection],
+                collections=[dataset.collection],
                 datetime=(datetime.datetime(date.year,date.month,date.day,0,0,0),datetime.datetime(date.year,date.month,date.day,23,59,59))
             )
 
             for item in search.item_collection().items:
-                if "platform" in dataset:
-                    if item.common_metadata.platform != dataset["platform"]:
-                        continue
                 (ds, filename) = self.__open_dataset_from_stac_item(item,dataset_id)
                 break
 

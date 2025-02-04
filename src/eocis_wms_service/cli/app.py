@@ -25,11 +25,9 @@ import datetime
 from eocis_wms_service.load.layer_loader import LayerLoader
 from config import Config
 
-config = None
-with open(Config.DATA_CONFIGURATION_PATH) as f:
-    config = json.loads(f.read())
 
-layer_loader = LayerLoader(config)
+
+layer_loader = LayerLoader(Config.DATA_CONFIGURATION_PATH, Config.VIEWER_CONFIGURATION_PATH, Config.SCRATCH_AREA)
 
 app = Flask(__name__)
 
@@ -82,7 +80,7 @@ class App:
             srs = request.args.get("srs")
             bbox = request.args.get("bbox")
             time = request.args.get("TIME")
-            dt = datetime.datetime.strptime(time[:16],"%Y-%m-%dT%H:%M") if time else None
+            dt = datetime.datetime.strptime(time[:16],"%Y-%m-%dT%H:%M").replace(tzinfo=None) if time else None
 
             coords = bbox.split(",")
             y_min = float(coords[0])
@@ -103,7 +101,7 @@ class App:
     def fetch_with_time(layer, yx, dt):
         (y, x) = tuple(yx.split(":"))
         (y, x) = (float(y), float(x))
-        dt = datetime.datetime.strptime(dt, "%Y-%m-%d")
+        dt = datetime.datetime.strptime(dt, "%Y-%m-%d").replace(tzinfo=None)
         value = layer_loader.get_point_value(layer, y, x, dt)
         response = jsonify(value)
         response.headers.add("Access-Control-Allow-Origin", "*")

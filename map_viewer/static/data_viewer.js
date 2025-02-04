@@ -2,10 +2,10 @@
 var map = null;
 var popup = null;
 
-
 class DataViewer {
 
     constructor(subset_name) {
+
         this.subset_name = subset_name;
         this.base_wms_url = "wms_service";
         this.point_service_base_url = "point_service";
@@ -28,6 +28,15 @@ class DataViewer {
 
         this.slider = null;
         this.projection = "";
+
+        // bounding box
+        this.min_y = null;
+        this.max_y = null;
+        this.min_x = null;
+        this.max_x = null;
+        this.rectangle = null;
+        this.remove_area_btn = document.getElementById("removeArea");
+        this.remove_area_btn.style.display = "none";
     }
 
     async load_metadata() {
@@ -39,6 +48,7 @@ class DataViewer {
         this.min_zoom = o["min_zoom"];
         this.initial_zoom = o["initial_zoom"];
         this.max_zoom = o["max_zoom"];
+        this.data_url = o["data_url"];
 
         this.lon_min = o["lon_min"];
         this.lon_max = o["lon_max"];
@@ -130,6 +140,71 @@ class DataViewer {
             await this.update_popup(e.latlng);
         });
 
+        if (this.projection === "EPSG:4326") {
+
+            var drawnItems = new L.FeatureGroup();
+
+            map.addLayer(drawnItems);
+
+            var drawControl = new L.Control.Draw({
+                draw: {
+                    rectangle: true,
+                    polyline: false,
+                    polygon: false,
+                    marker: false,
+                    line: false,
+                    circle: false,
+                    circlemarker: false
+                }
+            });
+            map.addControl(drawControl);
+
+            map.on('draw:created', (e) => {
+                var layer = e.layer;
+                let poly = layer.getLatLngs()[0];
+
+                if (this.rectangle !== null) {
+                    this.rectangle.remove();
+                    this.rectangle = null;
+                }
+
+                this.min_y = null;
+                this.max_y = null;
+                this.min_x = null;
+                this.max_x = null;
+
+                for (let idx = 0; idx < poly.length; idx++) {
+                    let p = poly[idx];
+                    if (this.min_y === null || p.lat < this.min_y) {
+                        this.min_y = p.lat;
+                    }
+                    if (this.max_y === null || p.lat > this.max_y) {
+                        this.max_y = p.lat;
+                    }
+                    if (this.min_x === null || p.lng < this.min_x) {
+                        this.min_x = p.lng;
+                    }
+                    if (this.max_x  === null || p.lng > this.max_x ) {
+                        this.max_x = p.lng;
+                    }
+                }
+                let bounds = [[this.min_y, this.min_x], [this.max_y, this.max_x]];
+                this.rectangle = L.rectangle(bounds, {"color": "blue"}).addTo(map);
+                drawnItems.addLayer(this.rectangle);
+
+                this.remove_area_btn.style.display = "inline";
+            });
+
+            this.remove_area_btn.addEventListener("click", (evt) => {
+                this.rectangle.remove();
+                this.rectangle = null;
+                this.min_y = null;
+                this.max_y = null;
+                this.min_x = null;
+                this.max_x = null;
+                this.remove_area_btn.style.display = "none";
+            });
+        }
     }
 
     init() {
@@ -345,7 +420,7 @@ class DataViewer {
         this.current_layers[layer_name].on('loading', function (event) {
             let ele = document.getElementById(layer_name+"_load_status");
             if (ele) {
-                ele.style.display = "inline";
+                ele.style.visibility = "visible";
             } else {
                 alert("missing");
             }
@@ -354,7 +429,7 @@ class DataViewer {
         this.current_layers[layer_name].on('load', function (event) {
             let ele = document.getElementById(layer_name+"_load_status");
             if (ele) {
-                ele.style.display = "none";
+                ele.style.visibility = "hidden";
             } else {
                 alert("missing");
             }
@@ -397,6 +472,14 @@ class DataViewer {
         if (layer_metadata.units) {
             d.appendChild(document.createTextNode(layer_metadata.units));
         }
+
+        let loading_button = document.createElement("button");
+        loading_button.setAttribute("class","btn btn-warning");
+        loading_button.appendChild(document.createTextNode("Loading..."));
+        loading_button.setAttribute("id",layer_name+"_load_status");
+        loading_button.style.marginLeft = "10px";
+        d.appendChild(loading_button);
+
         add_spacer(d);
 
         const legend_table_div = document.getElementById('legend_table_div');
@@ -474,24 +557,30 @@ class DataViewer {
         add_spacer(d);
 
         let button = document.createElement("button");
-        button.setAttribute("class","btn btn-info");
-        button.appendChild(document.createTextNode("Information..."));
+        button.setAttribute("class","btn btn-light");
+        button.appendChild(document.createTextNode("Information"));
         button.addEventListener("click", this.create_info_button_callback(layer_name));
         button.style.marginRight = "10px";
         d.appendChild(button);
 
         let remove_button = document.createElement("button");
-        remove_button.setAttribute("class","btn btn-dark");
+        remove_button.setAttribute("class","btn btn-light");
         remove_button.appendChild(document.createTextNode("Remove"));
         remove_button.addEventListener("click", this.create_remove_button_callback(layer_name));
         remove_button.style.marginRight = "10px";
         d.appendChild(remove_button);
 
-        let loading_button = document.createElement("button");
-        loading_button.setAttribute("class","btn bg-warning");
-        loading_button.appendChild(document.createTextNode("Loading..."));
-        loading_button.setAttribute("id",layer_name+"_load_status");
-        d.appendChild(loading_button);
+        if (this.data_url) {
+            let data_button = document.createElement("button");
+            data_button.setAttribute("class", "btn btn-light");
+            data_button.appendChild(document.createTextNode("Get Data..."));
+            data_button.addEventListener("click", (evt) => {
+                this.get_data_callback(layer_name)
+            });
+            data_button.style.marginRight = "10px";
+            d.appendChild(data_button);
+        }
+
         return d;
     }
 
@@ -586,6 +675,18 @@ class DataViewer {
             this.add_layer(layer_name);
             this.search_results_modal.hide();
         }
+    }
+
+    get_data_callback(layer_name) {
+        let metadata = this.layer_metadata[layer_name];
+        let url = this.data_url+"?dataset="+metadata["dataset"]+"&variable="+metadata["variable"];
+        if (this.view_date) {
+            url += "&start_date="+this.view_date.toISOString().slice(0,10)+"&end_date="+this.view_date.toISOString().slice(0,10);
+        }
+        if (this.min_x !== null && this.min_y !== null && this.max_x !== null && this.max_y !== null) {
+            url += "&min_x="+this.min_x+"&min_y="+this.min_y + "&max_x="+this.max_x+"&max_y="+this.max_y;
+        }
+        window.open(url,"_new");
     }
 
     run_search(search_text) {

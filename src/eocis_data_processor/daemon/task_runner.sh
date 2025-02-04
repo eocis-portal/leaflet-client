@@ -6,8 +6,7 @@ conda activate datashader_env
 
 export PYTHONPATH=`dirname $0`/../..
 
-python -m eocis_data_processor.tools.regridder.regridder --variables "$VARIABLES" \
+python -u -m eocis_data_processor.tools.regridder.regridder --data-spec-path $DATA_SPEC_PATH \
   --out-path $OUT_PATH --output-format $OUTPUT_FORMAT $BOUNDS \
   --start-year $START_YEAR --start-month $START_MONTH --start-day $START_DAY \
-  --end-year $END_YEAR --end-month $END_MONTH --end-day $END_DAY \
-  --config-path $CONFIG_PATH --dataset-id $DATASET_ID
+  --end-year $END_YEAR --end-month $END_MONTH --end-day $END_DAY

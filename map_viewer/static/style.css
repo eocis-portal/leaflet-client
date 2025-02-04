@@ -72,6 +72,10 @@ img:not(.logo):not(.legend) {
   margin-right: 10px;
 }
 
+#removeArea {
+  margin-right: 10px;
+}
+
 #map { position: absolute; top: 80px; bottom: 90px; left: 420px; right: 10px; }
 
 .navbar {

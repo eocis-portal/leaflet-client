@@ -37,7 +37,7 @@ and is efficient for the retrieval of time series data for a small area.
 This module can be invoked from the command line, use --help to show the options.
 This module can also be invoked by importing and calling the makeTimeSeriesSSTs function
 """
-
+import logging
 import os.path
 import datetime
 import json
@@ -47,7 +47,9 @@ from .spatial_select import SpatialSelect
 from .netcdf4_formatter import NetCDF4Formatter
 from .geotiff_formatter import GeotiffFormatter
 
-from eocis_data_provider.data_loader import DataLoader
+from eocis_data_manager.data_schema import DataSchema
+from eocis_data_manager.data_loader import DataLoader
+from eocis_data_manager.config import Config
 
 def regrid(conf_path:str, dataset_id: str, variables: list[str], x_min: float, x_max: float, y_min: float, y_max: float,
            start_date: datetime.datetime,
@@ -103,12 +105,14 @@ def regrid(conf_path:str, dataset_id: str, variables: list[str], x_min: float, x
 
     os.makedirs(output_path, exist_ok=True)
 
-    with open(conf_path) as f:
-        config = json.loads(f.read())
-    data_loader = DataLoader(dataset_config=config["datasets"], bundle_config=config["bundles"])
+    data_schema = DataSchema(configuration_path=Config.DATA_CONFIGURATION_PATH)
+
+    data_loader = DataLoader(dataset_schema=data_schema,scratch_area=Config.SCRATCH_AREA)
+
+    dataset = data_schema.get_dataset(dataset_id)
 
     # create an extractor to read the relevant part of the input data covering the extraction times and spatial boundaries
-    extractor = Extractor(data_loader, dataset_id=dataset_id, variable_names=variables, t_dim_name=t_dim_name)
+    extractor = Extractor(data_loader, dataset=dataset, variable_names=variables, t_dim_name=t_dim_name)
 
     # create a selector to select a part of the extracted data
     select = SpatialSelect(x_min=x_min, y_min=y_min, x_max=x_max,
@@ -128,12 +132,12 @@ def regrid(conf_path:str, dataset_id: str, variables: list[str], x_min: float, x
 
     # loop over each time period in the required date range...
     for (dt, slice_data, filename) in extractor.generate_data(start_dt=start_date, end_dt=end_date):
-        # aggregate this time period...
         selected_data = select.select(data=slice_data)
-        # print("slice:",mid_dt,sst_or_anomaly,uncertainty,sea_ice_fraction)
-
+        imported_data, importer = data_loader.download_dataset(dataset_id,selected_data,variables)
         # and append it to the output file
-        formatter.write(dt, selected_data, filename, variable_names=variables)
+        formatter.write(dt, imported_data, filename, variable_names=variables)
+        if importer:
+            importer.close()
 
     formatter.close()
 
@@ -177,14 +181,11 @@ def createParser():
     parser.add_argument('--config-path',
                         help='path to the configuration file')
 
-    parser.add_argument('--dataset-id',
-                        help='the id of the dataset')
+    parser.add_argument('--data-spec-path',
+                        help='path of a json file describing the datasets and variables in each task')
 
     parser.add_argument(
         "--output-format", metavar="<FORMAT>", help="define the output format", default="netcdf4")
-
-    parser.add_argument('--variables', default="",
-                        help='Supply a comma separated list of variables.')
 
     return parser
 
@@ -194,15 +195,18 @@ def dispatch(args):
     start_dt = datetime.datetime(args.start_year, args.start_month, args.start_day, 12, 0, 0)
     end_dt = datetime.datetime(args.end_year, args.end_month, args.end_day, 12, 0, 0)
 
-    variables = list(map(lambda name: name.strip(), args.variables.split(",")))
+    with open(args.data_spec_path) as f:
+        data_spec = json.loads(f.read())
 
-    regrid(dataset_id=args.dataset_id, variables=variables, x_min=args.x_min, y_min=args.y_min, x_max=args.x_max, y_max=args.y_max,
+    for dataset_id in data_spec:
+        regrid(dataset_id=dataset_id, variables=data_spec[dataset_id], x_min=args.x_min, y_min=args.y_min, x_max=args.x_max, y_max=args.y_max,
            start_date=start_dt, end_date=end_dt,
            output_path=args.out_path,
            conf_path=args.config_path, output_format=args.output_format)
 
 
 def main():
+    logging.basicConfig(level=logging.INFO)
     parser = createParser()
     args = parser.parse_args()
     dispatch(args)

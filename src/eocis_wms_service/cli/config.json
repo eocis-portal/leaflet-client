@@ -1,0 +1,181 @@
+{
+  "global_and_regional": {
+    "lat_min": -90,
+    "lat_max": 90,
+    "lon_min": -180,
+    "lon_max": 180,
+    "min_zoom": 1,
+    "initial_zoom": 2,
+    "max_zoom": 10,
+    "projection": "EPSG:4326",
+    "data_url": "http://127.0.0.1:50010",
+    "layers": {
+      "analysed_sst": {
+        "dataset": "sst",
+        "variable": "analysed_sst",
+        "cmap": "sst",
+        "min": 0,
+        "max": 32,
+        "units": "Degrees Centigrade",
+        "step": "daily",
+        "offset": -273.15,
+        "projection": "EPSG:4326"
+      },
+      "analysed_sst_uncertainty": {
+        "dataset": "sst",
+        "variable": "analysed_sst_uncertainty",
+        "cmap": "viridis",
+        "min": 0,
+        "max": 2,
+        "units": "Degrees Centigrade",
+        "step": "daily",
+        "projection": "EPSG:4326"
+      },
+      "analysed_sst_anomaly": {
+        "dataset": "sst",
+        "cache": false,
+        "variable": "analysed_sst_anomaly",
+        "cmap": "coolwarm",
+        "min": -5,
+        "max": 5,
+        "units": "Degrees Centigrade",
+        "step": "daily"
+      },
+      "lst_3a_day": {
+        "cache": false,
+        "dataset": "lst_s3a_day",
+        "variable": "lst",
+        "cmap": "coolwarm",
+        "min": -20,
+        "max": 50,
+        "units": "Degrees Centigrade",
+        "step": "daily",
+        "offset": -273.15,
+        "projection": "EPSG:4326"
+      },
+      "lst_3b_day": {
+        "cache": false,
+        "dataset": "lst_s3b_day",
+        "variable": "lst",
+        "cmap": "coolwarm",
+        "min": -20,
+        "max": 50,
+        "units": "Degrees Centigrade",
+        "step": "daily",
+        "offset": -273.15,
+        "projection": "EPSG:4326"
+      },
+      "lst_3a_night": {
+          "cache": false,
+          "dataset": "lst_s3a_night",
+          "variable": "lst",
+          "cmap": "coolwarm",
+          "min": -20,
+          "max": 50,
+          "units": "Degrees Centigrade",
+          "step": "daily",
+          "offset": -273.15,
+          "projection": "EPSG:4326"
+      },
+      "lst_3b_night": {
+        "cache": false,
+        "dataset": "lst_s3b_night",
+        "variable": "lst",
+        "cmap": "coolwarm",
+        "min": -20,
+        "max": 50,
+        "units": "Degrees Centigrade",
+        "step": "daily",
+        "offset": -273.15,
+        "projection": "EPSG:4326"
+      }
+    }
+  },
+  "chuk": {
+    "projection": "EPSG:27700",
+    "min_zoom": 0,
+    "initial_zoom": 0,
+    "max_zoom": 7,
+    "lat_min": 48,
+    "lat_max": 62,
+    "lon_min": -16,
+    "lon_max": 4,
+    "layers": {
+      "landcover": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "units": "",
+        "dataset": "chuk_landcover",
+        "variable": "land_cover",
+        "cmap": "LandCover",
+        "min": 1,
+        "max": 21,
+        "clip_min": 1,
+        "aggfn": "mode",
+        "flip": "y",
+        "legend": "table",
+        "legend_classes": "Deciduous_woodland Coniferous_woodland Arable Improved_grassland Neutral_grassland Calcareous_grassland Acid_grassland Fen Heather Heather_grassland Bog Inland_rock Saltwater Freshwater Supralittoral_rock Supralittoral_sediment Littoral_rock Littoral_sediment Saltmarsh Urban Suburban",
+        "legend_colors": "#006600 #732600 #00FF00 #7FE57F #70A800 #998100 #FFFF00 #801A80 #E68CA6 #008073 #D2D2FF #000080 #0000FF #CCB300 #CCB300 #FFFF80 #FFFF80 #8080FF #000000 #808080 #00FFFFFF",
+        "categories": {
+          "1": "Deciduous_woodland",
+          "2": "Coniferous_woodland",
+          "3": "Arable",
+          "4": "Improved_grassland",
+          "5": "Neutral_grassland",
+          "6": "Calcareous_grassland",
+          "7": "Acid_grassland",
+          "8": "Fen",
+          "9": "Heather",
+          "10": "Heather_grassland",
+          "11": "Bog",
+          "12": "Inland_rock",
+          "13": "Saltwater",
+          "14": "Freshwater",
+          "15": "Supralittoral_rock",
+          "16": "Supralittoral_sediment",
+          "17": "Littoral_rock",
+          "18": "Littoral_sediment",
+          "19": "Saltmarsh",
+          "20": "Urban",
+          "21": "Suburban"
+        }
+      },
+      "elevation": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "dataset": "chuk_elevation",
+        "variable": "elevation",
+        "cmap": "viridis",
+        "min": 0,
+        "max": 1100,
+        "aggfn": "mean",
+        "flip": "y",
+        "units": "metres"
+      },
+      "urban_area": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "dataset": "chuk_builtarea",
+        "variable": "urban_area",
+        "cmap": "viridis",
+        "min": 0,
+        "max": 1,
+        "aggfn": "mean",
+        "flip": "y",
+        "units": "fraction"
+      },
+      "suburban_area": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "dataset": "chuk_builtarea",
+        "variable": "suburban_area",
+        "cmap": "viridis",
+        "min": 0,
+        "max": 1,
+        "aggfn": "mean",
+        "flip": "y",
+        "units": "fraction"
+      }
+    }
+  }
+}

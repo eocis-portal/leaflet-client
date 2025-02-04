@@ -27,7 +27,7 @@ import datetime
 DATE_FORMAT = "%d-%m-%Y"
 
 def parse_date(s):
-    return datetime.datetime.strptime(s,DATE_FORMAT).date()
+    return datetime.datetime.strptime(s,DATE_FORMAT).replace(tzinfo=None).date()
 
 """
 The dataset module deals with the representation of a dataset, consisting of one or more variables.
@@ -35,34 +35,47 @@ The dataset module deals with the representation of a dataset, consisting of one
 
 class Variable:
 
-    def __init__(self,variable_id:str,variable_name:str,spec:dict):
+    def __init__(self,variable_id:str,variable_name:str,climatology_path:str, based_on_variable:str,
+                 short_description:str="", long_description:str=""):
         self.variable_id = variable_id
         self.variable_name = variable_name
-        self.spec = spec
+        self.climatology_path = climatology_path
+        self.based_on_variable = based_on_variable
+        self.short_description = short_description
+        self.long_description = long_description
 
     def __repr__(self) -> str:
-        spec = json.dumps(self.spec)
-        return f"Variable({self.variable_id},{self.variable_name},{spec})"
-
-    def __eq__(self, other:"Variable") -> bool:
-        return self.variable_id == other.variable_id \
-            and self.variable_name == other.variable_name \
-            and self.spec == other.spec
+        return f"Variable({self.variable_id},{self.variable_name})"
 
 
 class DataSet:
 
-    def __init__(self, dataset_id:str, dataset_name:str, temporal_resolution:str, spatial_resolution:str, start_date:datetime.date, end_date:datetime.date, collection:str, spec:dict, variables:list[Variable], enabled:bool=True):
+    def __init__(self, dataset_id:str, dataset_name:str,
+                 short_description:str, long_description: str,
+                 temporal_resolution:str, spatial_resolution:str,
+                 start_date:datetime.date, end_date:datetime.date, collection:str,
+                 path: str,
+                 variables:list[Variable],
+                 x_min: float, y_min: float, x_max: float, y_max: float,
+                 license:str="", citation:str="", enabled=True):
         self.dataset_id = dataset_id
         self.dataset_name = dataset_name
+        self.short_description = short_description
+        self.long_description = long_description
         self.temporal_resolution = temporal_resolution
         self.spatial_resolution = spatial_resolution
         self.start_date = start_date
         self.end_date = end_date
         self.collection = collection
-        self.spec = spec
+        self.path = path
         self.variables = variables
         self.enabled = enabled
+        self.license = license
+        self.citation = citation
+        self.x_min = x_min
+        self.x_max = x_max
+        self.y_min = y_min
+        self.y_max = y_max
 
     def get_variable(self, variable_id):
         for v in self.variables:
@@ -71,16 +84,6 @@ class DataSet:
         return None
 
     def __repr__(self) -> str:
-        spec = json.dumps(self.spec)
         variables = ", ".join([str(v) for v in self.variables])
-        return f"DataSet({self.dataset_id},{self.dataset_name},{self.temporal_resolution},{self.spatial_resolution},{self.start_date},{self.end_date},{self.collection},{spec},{variables})"
+        return f"DataSet({self.dataset_id},{self.dataset_name},{self.temporal_resolution},{self.spatial_resolution},{self.start_date},{self.end_date},{self.collection},{variables})"
 
-    def __eq__(self,other) -> bool:
-        return self.dataset_id == other.dataset_id \
-            and self.dataset_name == other.dataset_name \
-            and self.temporal_resolution == other.temporal_resolution \
-            and self.spatial_resolution == other.spatial_resolution \
-            and self.start_date == other.start_date \
-            and self.end_date == other.end_date \
-            and self.spec == other.spec \
-            and self.variables == other.variables

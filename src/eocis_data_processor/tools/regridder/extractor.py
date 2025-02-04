@@ -25,10 +25,8 @@ This module handles the extraction of SST, uncertainty and sea-ice fraction data
 """
 
 import datetime
-import xarray as xr
-
-from eocis_data_provider.data_loader import DataLoader
-
+from eocis_data_manager.data_loader import DataLoader
+from eocis_data_manager.dataset import DataSet
 
 class Extractor(object):
 
@@ -38,21 +36,21 @@ class Extractor(object):
     for each discrete time point.
     """
 
-    def __init__(self, data_loader:DataLoader, dataset_id:str, variable_names:list[str], t_dim_name:str):
+    def __init__(self, data_loader:DataLoader, dataset:DataSet, variable_names:list[str], t_dim_name:str):
         """
         Constructor
 
         :param data_loader:
             the DataLoader
-        :param dataset_id:
-            the id of the dataset
+        :param dataset:
+            the dataset instance
         :param variable_names:
             list of variable names to include
         :param t_dim_name:
             the name of the time dimension
         """
         self.data_loader = data_loader
-        self.dataset_id = dataset_id
+        self.dataset = dataset
         self.variable_names = variable_names
         self.t_dim_name = t_dim_name
 
@@ -66,11 +64,11 @@ class Extractor(object):
         The generator yields (dt,dataset) tuples
         """
 
-        dates = self.data_loader.get_item_dates(self.dataset_id, start_date, end_date)
+        dates = self.data_loader.get_item_dates(self.dataset, start_date, end_date)
 
         for dt in dates:
-            (arr, filename) = self.data_loader.get_dataset(self.dataset_id, self.variable_names, dt)
-            yield (dt,arr,filename)
+            (ds, filename) = self.data_loader.get_dataset(self.dataset.dataset_id, self.variable_names, dt)
+            yield (dt,ds,filename)
 
     def generate_data(self, start_dt:datetime.datetime, end_dt:datetime.datetime):
         """Generator that lazily yields the time period data for a given time and space range

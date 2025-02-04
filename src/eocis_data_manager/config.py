@@ -37,12 +37,19 @@ class Config:
     # monitor
     TASK_QUOTA=1                        # the number of regridding tasks that can run in parallel
     JOB_QUOTA=2                         # the number of regridding jobs that can run in parallel
-    CLEANUP_AFTER_SECS=100000           # the interval after which a job is cleaned up and its files are deleted
+
     MAX_TASK_RETRIES = 1                # how many times a failed task can be retried
 
     # output file location
     OUTPUT_PATH = "/data/data_service/joboutput"  # the path to the location to store job output files
     OUTPUT_FILENAME_PATTERN = "{Y}{m}{d}{H}{M}{S}-EOCIS-{LEVEL}-{PRODUCT}-v{VERSION}-fv01.0"
 
-    DATA_CONFIGURATION_PATH = os.path.join(os.path.split(__file__)[0],"..","eocis_data_provider","config.json")
+    DATA_CONFIGURATION_PATH = os.path.join(os.path.split(__file__)[0],"config.json")
+
+    MAX_JOB_PIXELS = 1e9
+
+    SCRATCH_AREA = "/tmp"
+    CONDA_PATH = "/home/dev/miniforge3/bin/conda"
+
+    CLEANUP_AFTER_SECS = 100
 
