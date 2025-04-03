@@ -21,7 +21,7 @@ import logging
 import os
 import xarray as xr
 import datetime
-import copy
+import calendar
 
 from pystac_client import Client
 from .data_importer import DataImporter
@@ -94,8 +94,10 @@ class DataLoader:
 
     def download_dataset(self, dataset_id, ds, variables):
         dataset = self.dataset_schema.get_dataset(dataset_id)
+        x_dim = ds[dataset.x_coord_name].dims[0]
+        y_dim = ds[dataset.y_coord_name].dims[0]
         if dataset.collection:
-            importer = DataImporter(ds, variables, folder=self.scratch_area)
+            importer = DataImporter(ds, variables, folder=self.scratch_area, x_dimension=x_dim, y_dimension=y_dim, x_coord=dataset.x_coord_name, y_coord=dataset.y_coord_name)
             imported_ds = importer.import_dataset()
             return imported_ds, importer
         else:
@@ -103,16 +105,6 @@ class DataLoader:
 
     def get_dataset(self, dataset_id, variables, date):
         dataset = self.dataset_schema.get_dataset(dataset_id)
-        base_variables = []
-        anomaly_variables = []
-        for variable_id in variables:
-            variable = dataset.get_variable(variable_id)
-            if variable.climatology_path:
-                if variable.based_on_variable not in base_variables:
-                    base_variables.append(variable.based_on_variable)
-                anomaly_variables.append((variable_id,variable.based_on_variable,variable.climatology_path))
-            else:
-                base_variables.append(variable_id)
 
         ds = None
         filename = None
@@ -129,23 +121,34 @@ class DataLoader:
                     p = p.replace("{YYYY}",yyyy).replace("{MM}",mm).replace("{DD}",dd)
                 if os.path.exists(p):
                     filename = os.path.split(p)[0]
-                    ds = xr.open_mfdataset([p])
+                    if dataset.start_date is not None:
+                        ds = xr.open_mfdataset([p],concat_dim=("time",),combine="nested")
+                    else:
+                        ds = xr.open_mfdataset([p])
                     break
 
         elif dataset.collection:
 
+            # establish search criteria
+            if dataset.temporal_resolution == "monthly":
+                (_,days_in_month) = calendar.monthrange(date.year, date.month)
+                datetime_range = datetime.datetime(date.year, date.month, 1, 0, 0, 0), datetime.datetime(
+                    date.year, date.month, days_in_month, 23, 59, 59)
+            else:
+                datetime_range = datetime.datetime(date.year,date.month,date.day,0,0,0),datetime.datetime(date.year,date.month,date.day,23,59,59)
+
             search = self.client.search(
                 collections=[dataset.collection],
-                datetime=(datetime.datetime(date.year,date.month,date.day,0,0,0),datetime.datetime(date.year,date.month,date.day,23,59,59))
+                datetime=datetime_range
             )
 
+            # return the first match
             for item in search.item_collection().items:
                 (ds, filename) = self.__open_dataset_from_stac_item(item,dataset_id)
                 break
 
-        for (variable,based_on_variable,climatology_path) in anomaly_variables:
-            climatology_path = climatology_path.replace("{DOY}", f"{date.timetuple()[7]:03d}")
-            climatology_da = xr.open_mfdataset([climatology_path])[variable].squeeze(drop=True)
-            ds[variable] = ds[based_on_variable] - climatology_da
+        if dataset.reindex:
+            ds = ds.reset_coords().set_coords((dataset.x_coord_name, dataset.y_coord_name)) \
+                .set_index({dataset.x_dim_name: dataset.x_coord_name, dataset.y_dim_name: dataset.y_coord_name})
 
         return (ds[variables], filename)

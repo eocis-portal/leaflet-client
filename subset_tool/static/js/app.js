@@ -260,6 +260,7 @@ class Form {
 
             this.license_text.innerText = obj["license"] || "";
             if (obj["citations"]) {
+                this.citation_area.innerHTML = "";
                 obj["citations"].forEach((txt) => {
                     let p = document.createElement("p");
                     p.appendChild(document.createTextNode(txt));

@@ -51,17 +51,13 @@ from eocis_data_manager.data_schema import DataSchema
 from eocis_data_manager.data_loader import DataLoader
 from eocis_data_manager.config import Config
 
-def regrid(conf_path:str, dataset_id: str, variables: list[str], x_min: float, x_max: float, y_min: float, y_max: float,
+def regrid(dataset_id: str, variables: list[str], x_min: float, x_max: float, y_min: float, y_max: float,
            start_date: datetime.datetime,
            end_date: datetime.datetime,
            output_path: str,
-           output_format: str,
-           y_dim_name: str = "lat", x_dim_name: str = "lon", t_dim_name: str = "time"):
+           output_format: str):
     """
     Obtain an extract from a dataset.
-
-    :param conf_path:
-        The data configuration path
 
     :param dataset_id:
         The id of the dataset
@@ -91,16 +87,7 @@ def regrid(conf_path:str, dataset_id: str, variables: list[str], x_min: float, x
         Folder to write the data.
 
     :param output_format:
-        Name of the output format, eg "csv", "netcdf4", "geotiff"
-
-    :param y_dim_name:
-        Name of the y/lat dimension in the dataset
-
-    :param x_dim_name:
-        Name of the x/lon dimension in the dataset
-
-    :param t_dim_name:
-        Name of the time dimension in the dataset
+        Name of the output format, eg "netcdf4", "geotiff"
     """
 
     os.makedirs(output_path, exist_ok=True)
@@ -112,13 +99,14 @@ def regrid(conf_path:str, dataset_id: str, variables: list[str], x_min: float, x
     dataset = data_schema.get_dataset(dataset_id)
 
     # create an extractor to read the relevant part of the input data covering the extraction times and spatial boundaries
-    extractor = Extractor(data_loader, dataset=dataset, variable_names=variables, t_dim_name=t_dim_name)
+    extractor = Extractor(data_loader, dataset=dataset, variable_names=variables)
 
-    # create a selector to select a part of the extracted data
-    select = SpatialSelect(x_min=x_min, y_min=y_min, x_max=x_max,
-                            y_max=y_max, x_dim_name=x_dim_name,
-                            y_dim_name=y_dim_name,
-                            t_dim_name=t_dim_name)
+    select = None
+    if x_min is not None:
+        # create a selector to select a part of the extracted data
+        select = SpatialSelect(x_min=x_min, y_min=y_min, x_max=x_max,
+                            y_max=y_max, x_coord_name=dataset.x_coord_name,
+                            y_coord_name=dataset.y_coord_name)
 
     # create a formatter (either CSV or netcdf4 based) to handle writing the aggregated data to file
 
@@ -129,10 +117,12 @@ def regrid(conf_path:str, dataset_id: str, variables: list[str], x_min: float, x
     else:
         raise Exception(f"Export format {output_format} is not supported")
 
-
     # loop over each time period in the required date range...
     for (dt, slice_data, filename) in extractor.generate_data(start_dt=start_date, end_dt=end_date):
-        selected_data = select.select(data=slice_data)
+        if select is not None:
+            selected_data = select.select(data=slice_data)
+        else:
+            selected_data = slice_data
         imported_data, importer = data_loader.download_dataset(dataset_id,selected_data,variables)
         # and append it to the output file
         formatter.write(dt, imported_data, filename, variable_names=variables)
@@ -146,13 +136,13 @@ def createParser():
     import argparse
     parser = argparse.ArgumentParser(description='extract regridded data.')
 
-    parser.add_argument('--x-min', type=float)
+    parser.add_argument('--x-min', type=float, default=None)
 
-    parser.add_argument('--x-max', type=float)
+    parser.add_argument('--x-max', type=float, default=None)
 
-    parser.add_argument('--y-min', type=float)
+    parser.add_argument('--y-min', type=float, default=None)
 
-    parser.add_argument('--y-max', type=float)
+    parser.add_argument('--y-max', type=float, default=None)
 
     parser.add_argument('--start-year', type=int,
                         help='The start year of the time series.')
@@ -178,9 +168,6 @@ def createParser():
     parser.add_argument('--out-path',
                         help='The path in which to write the output.')
 
-    parser.add_argument('--config-path',
-                        help='path to the configuration file')
-
     parser.add_argument('--data-spec-path',
                         help='path of a json file describing the datasets and variables in each task')
 
@@ -202,7 +189,7 @@ def dispatch(args):
         regrid(dataset_id=dataset_id, variables=data_spec[dataset_id], x_min=args.x_min, y_min=args.y_min, x_max=args.x_max, y_max=args.y_max,
            start_date=start_dt, end_date=end_dt,
            output_path=args.out_path,
-           conf_path=args.config_path, output_format=args.output_format)
+           output_format=args.output_format)
 
 
 def main():

@@ -15,12 +15,19 @@ img:not(.logo):not(.legend) {
   text-decoration: underline;
 }
 
+.dataset_link {
+  color: blue;
+  text-decoration: underline;
+  margin-left:10px;
+}
+
 .opacity_control {
   border: 2px solid gray;
   background-color:white;
-  width:250px;
+  width:150px;
   display:inline;
-  float: right;
+  margin-left: 10px;
+  vertical-align: text-top;
 }
 
 #date_picker {
@@ -52,7 +59,7 @@ img:not(.logo):not(.legend) {
 }
 
 #layer_column {
-  margin-right: 20px;
+  margin-right: 40px;
 }
 
 .legend {
@@ -104,4 +111,21 @@ img:not(.logo):not(.legend) {
 
 .legend_colourbar {
   width: 70%;
+}
+
+.select_cmap_box {
+    min-width: 200px;
+    min-height: 50px;
+}
+
+#scale_cmap option {
+    border: 5px solid white;
+}
+
+#scale_cmap option:checked {
+    border: 5px solid red;
+}
+
+button  {
+  font-size: 12px !important;
 }

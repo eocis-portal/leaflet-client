@@ -1,9 +1,37 @@
+/*
+# MIT License
+#
+# Copyright (C) 2023-2025 National Centre For Earth Observation (NCEO)
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+# and associated documentation files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or
+# substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
 
 var map = null;
 var popup = null;
 
+/**
+ * Define a class to manage a leafletJS-based viewer for WMS data layers
+ */
 class DataViewer {
 
+    /**
+     * Create a data viewer for a named subset of layers
+     *
+     * @param subset_name
+     */
     constructor(subset_name) {
 
         this.subset_name = subset_name;
@@ -23,8 +51,15 @@ class DataViewer {
 
         // map from layer_name to the map layer, for all currently visible layers
         this.current_layers = {};
+        // list of layer names, ordered from top to bottom
         this.current_layer_names = [];
+        // map from layer name to the div element that holds controls for that layer
         this.layer_controls = {};
+
+        // map from layer_name to legend <img> elements and min/max controls
+        this.legend_imgs= {};
+        this.legend_mins= {};
+        this.legend_maxes= {};
 
         this.slider = null;
         this.projection = "";
@@ -37,8 +72,59 @@ class DataViewer {
         this.rectangle = null;
         this.remove_area_btn = document.getElementById("removeArea");
         this.remove_area_btn.style.display = "none";
+
+        this.base_map_none = document.getElementById("base_map_none");
+        this.base_map_osm = document.getElementById("base_map_osm");
+        this.base_map_coastline = document.getElementById("base_map_coastline");
+
+        this.base_map_none.addEventListener("input", (evt) => {
+            if (this.base_layer) {
+                map.removeLayer(this.base_layer);
+                this.base_layer = null;
+            }
+        });
+
+        if (this.base_map_osm) {
+            this.base_map_osm.addEventListener("input", (evt) => {
+                if (this.base_layer === null) {
+                    this.add_base_layer("osm");
+                    this.base_layer.bringToBack();
+                }
+            });
+        }
+
+        if (this.base_map_coastline) {
+            this.base_map_coastline.addEventListener("input", (evt) => {
+                if (this.base_layer === null) {
+                    this.add_base_layer("coastline");
+                    this.base_layer.bringToBack();
+                }
+            });
+        }
     }
 
+    /**
+     * Add a base layer to the map
+     */
+    add_base_layer(type) {
+        if (type === "osm") {
+            this.base_layer = L.tileLayer.wms('http://127.0.0.1:8181/service?', { // 'https://eocis.org/mapproxy/service?', {
+                layers: 'osm',
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+        }
+        if (type === "coastline") {
+            fetch("coastline.geojson").then(r => r.json()).then(o => {
+                this.base_layer = L.geoJSON(o).addTo(map);
+            });
+        }
+    }
+
+    /**
+     * Load metadata and then initialise the map
+     *
+     * @returns {Promise<void>}
+     */
     async load_metadata() {
         let r = await fetch(this.metadata_url+"/"+this.subset_name);
         let o = await r.json();
@@ -57,7 +143,6 @@ class DataViewer {
 
         if (this.projection === "EPSG:4326") {
             this.crs = L.CRS.EPSG4326;
-
 
             const lat_center = (this.lat_max+this.lat_min) / 2;
             const lon_center = (this.lon_max+this.lon_min) / 2;
@@ -78,7 +163,7 @@ class DataViewer {
             });
 
             this.transformCoords = function (arr) {
-                return proj4(this.projection, 'EPSG:4326', arr).reverse();
+                return proj4(this.projection, 'EPSG:4326', arr); // .reverse();
             };
 
             this.bounds = [
@@ -102,10 +187,13 @@ class DataViewer {
 
         map = L.map('map', mapOptions);
 
-        this.wmsLayer = L.tileLayer.wms('https://eocis.org/mapproxy/service?', {
-            layers: 'osm'
-        }).addTo(map);
+        if (this.base_map_osm) {
+            this.add_base_layer("osm");
+        }
 
+        if (this.base_map_coastline) {
+            this.add_base_layer("coastline");
+        }
 
         this.search_results_modal = new bootstrap.Modal($('#search_results_modal').get(0), {
             keyboard: false
@@ -115,8 +203,18 @@ class DataViewer {
            keyboard: false
         });
 
+        this.scale_modal = new bootstrap.Modal($('#scale_modal').get(0), {
+           keyboard: false
+        });
+        this.scale_min  = document.getElementById("scale_min");
+        this.scale_max  = document.getElementById("scale_max");
+        this.scale_cmap = document.getElementById("scale_cmap");
+        this.scale_update_btn = document.getElementById("scale_update_btn");
+
+        // bind search controls
         this.bind();
 
+        // attach layers panel open / close buttons
         document.getElementById("layers_close_btn").addEventListener("click", (evt) => {
             document.getElementById("layers").style.display = "none";
             document.getElementById("map").style.left = "10px";
@@ -207,6 +305,9 @@ class DataViewer {
         }
     }
 
+    /**
+     * Initialise the viewer, loading any parameters from the URL that specify layers and viewing time
+     */
     init() {
         let sp = new URLSearchParams(location.search);
         let state = {};
@@ -225,13 +326,21 @@ class DataViewer {
         });
     }
 
+    /**
+     * Load the state from an object collected from the URL
+     *
+     * @param state an object containing layer and view_date attributes to configure the viewer
+     */
     load_state(state) {
+        this.clear_layers();
         if (state.layer) {
             let names = state.layer.split(",");
-            this.clear_layers();
-            this.select_layers(names);
-        } else {
-            this.clear_layers();
+            for(var idx=0; idx<names.length; idx++) {
+                let layer_name = names[idx];
+                if (layer_name in this.layer_metadata && !this.layer_metadata[layer_name].disabled) {
+                    this.add_layer(layer_name);
+                }
+            }
         }
         if (state.view_date) {
             this.view_date = this.string_to_date(state.view_date);
@@ -240,23 +349,39 @@ class DataViewer {
         }
     }
 
+    /**
+     * record updated layer and view date selections in the browser history
+     */
     update_history() {
         const url = new URL(window.location);
         let state = {};
+
         if (this.current_layer_names.length) {
             let layer_names_str = this.current_layer_names.join(",");
             url.searchParams.set("layer", layer_names_str);
             state["layer"] = layer_names_str;
+        } else {
+            url.searchParams.delete("layer");
         }
+
         if (this.view_date) {
             let view_date_str = this.date_to_string(this.view_date);
             url.searchParams.set("view_date", view_date_str);
             state["view_date"] = view_date_str;
+        } else {
+            url.searchParams.delete("view_date");
         }
 
         history.pushState(state, "", url);
     }
 
+    /**
+     * Provide a standard string representation of dates
+     *
+     * @param {Date} dt a javascript date
+     *
+     * @returns {string} in format YYYY-MM-DD
+     */
     date_to_string(dt) {
         // return YYY-MM-DD formatted string from Date
         let day = dt.getUTCDate();
@@ -266,14 +391,26 @@ class DataViewer {
         return s;
     }
 
+    /**
+     * Parse a string
+     *
+     * @param s a string in format YYYY-MM-DD
+     *
+     * @returns {Date} a javascript Date object parsed from the string
+     */
     string_to_date(s) {
         // parse YYYY-MM-DD formatted string to Date
         let day = Number.parseInt(s.slice(8, 10));
         let month = Number.parseInt(s.slice(5, 7));
         let year = Number.parseInt(s.slice(0, 4));
-        return new Date(year, month - 1, day);
+        return new Date(year, month - 1, day, 12, 0, 0);
     }
 
+    /**
+     * Adjust the date range of the viewer given a layer.  This will potentially widen the date range.
+     *
+     * @param {string} layer_name the name of the layer
+     */
     set_date_range(layer_name) {
         let start = this.layer_metadata[layer_name].start_date;
         let end = this.layer_metadata[layer_name].end_date;
@@ -293,24 +430,47 @@ class DataViewer {
         }
     }
 
+    /**
+     * Called when the view date is updated.  Update the map layers and popup (if open)
+     *
+     * @returns {Promise<void>}
+     */
     async update_view_date() {
         for(let layer_name in this.current_layers) {
-            this.current_layers[layer_name].setParams({'TIME': this.view_date.toISOString()});
+            if (this.layer_metadata[layer_name].step === "monthly") {
+                // round to mid-month
+                let midmonth_date = new Date(this.view_date.getTime());
+                midmonth_date.setHours(12, 0, 0, 0);
+                midmonth_date.setDate(15);
+                this.current_layers[layer_name].setParams({'TIME': midmonth_date.toISOString()});
+            } else {
+                this.current_layers[layer_name].setParams({'TIME': this.view_date.toISOString()});
+            }
         }
         if (this.popup_latlng) {
             await this.update_popup(this.popup_latlng);
         }
     }
 
+    /**
+     * Update the time controls by scanning the current set of layers and seeing which temporal resolution/step
+     * they have.  This may remove or add the time slider control...
+     */
     update_time_controls() {
         let has_times = false;
         this.start_date = null;
         this.end_date = null;
         // work out which (if any) layers have a time dimension
+        // and which time step to use
+        let time_step = "monthly";
         this.current_layer_names.forEach(layer_name => {
             let layer_metadata = this.layer_metadata[layer_name];
             if (layer_metadata.start_date) {
                 has_times = true;
+                if (layer_metadata.step === "daily") {
+                    // use a daily time step if any layers are daily
+                    time_step = "daily";
+                }
             }
         });
         this.remove_time_slider();
@@ -322,20 +482,13 @@ class DataViewer {
             if (this.view_date == null) {
                 this.view_date = this.end_date;
             }
-            this.add_time_slider();
+            this.add_time_slider(time_step);
         }
     }
 
-    select_layers(layer_names) {
-        this.clear_layers();
-        for(var idx=0; idx<layer_names.length; idx++) {
-            let layer_name = layer_names[idx];
-            if (layer_name in this.layer_metadata && !this.layer_metadata[layer_name].disabled) {
-                this.add_layer(layer_name);
-            }
-        }
-    }
-
+    /**
+     * Remove all layers from the viewer
+     */
     clear_layers() {
         let layer_names = [];
         for(let layer_name in this.current_layers) {
@@ -344,13 +497,16 @@ class DataViewer {
         layer_names.forEach(layer_name => { this.remove_layer(layer_name)});
         this.remove_time_slider();
         this.popup_latlng = null;
-        // $("layers").setAttribute("style", "display:none;");
-        this.current_layers = {};
-        this.current_layer_names = [];
     }
 
+    /**
+     * Remove a layer from the viewer
+     *
+     * @param {string} layer_name the name of the layer to remove
+     */
     remove_layer(layer_name) {
         this.current_layer_names = this.current_layer_names.filter((name) => name != layer_name);
+        this.update_top_buttons();
         let layer = this.current_layers[layer_name];
         map.removeLayer(layer);
         delete this.current_layers[layer_name];
@@ -358,18 +514,33 @@ class DataViewer {
         controls.parentElement.removeChild(controls);
         delete this.layer_controls[layer_name];
         this.update_time_controls();
-        if (this.view_date < this.start_date) {
-            this.view_date = this.start_date;
-            this.slider.value = this.view_date;
-        }
-        if (this.view_date > this.end_date) {
-            this.view_date = this.end_date;
-            this.slider.value = this.view_date;
+        if (this.start_date != null && this.end_date != null) {
+            if (this.view_date < this.start_date) {
+                this.view_date = this.start_date;
+                if (this.slider) {
+                    this.slider.value = this.view_date;
+                }
+            }
+            if (this.view_date > this.end_date) {
+                this.view_date = this.end_date;
+                if (this.slider) {
+                    this.slider.value = this.view_date;
+                }
+            }
+        } else {
+            this.view_date = null;
         }
         this.update_history();
         map.closePopup();
     }
 
+    /**
+     * Make an empty span element with a given HTML background colour
+     *
+     * @param {string} col the HTML colour string
+     *
+     * @returns {HTMLSpanElement}
+     */
     make_colour_entry(col) {
         let elt = document.createElement("span");
         elt.appendChild(document.createTextNode("\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"));
@@ -377,10 +548,21 @@ class DataViewer {
         return elt;
     }
 
+    /**
+     * Gets a URL for a layer's legend
+     *
+     * @param layer_name
+     * @returns {string}
+     */
     get_legend_url(layer_name) {
-        return this.legend_url+"?layer="+layer_name;
+        return this.legend_url+"?cmap="+this.layer_metadata[layer_name].cmap;
     }
 
+    /**
+     * Add a layer to the viewer
+     *
+     * @param {string} layer_name the name of the layer to add
+     */
     add_layer(layer_name) {
 
         if (layer_name in this.current_layers) {
@@ -388,7 +570,8 @@ class DataViewer {
         }
 
         let layer_metadata = this.layer_metadata[layer_name];
-        this.current_layer_names.push(layer_name);
+        this.current_layer_names = [layer_name].concat(this.current_layer_names);
+
         this.update_time_controls();
 
         map.closePopup();
@@ -406,10 +589,18 @@ class DataViewer {
             'format':"image/png",
             'version':'1.3.0',
             'transparent': true,
-            'bounds': L.latLngBounds([[this.lat_min, this.lon_min],[this.lat_max, this.lon_max]])
+            'bounds': L.latLngBounds([[this.lat_min, this.lon_min],[this.lat_max, this.lon_max]]),
+            'CMAP': this.layer_metadata[layer_name].cmap,
+            'VMIN': this.layer_metadata[layer_name].min,
+            'VMAX': this.layer_metadata[layer_name].max,
+            updateWhenIdle: false,
+            updateWhenZooming: false,
+            keepBuffer: 4
         }
 
         this.layer_controls[layer_name] = this.add_layer_controls(layer_name, layer_metadata);
+
+        this.update_top_buttons();
 
         if (this.view_date) {
             wms_params['TIME'] = this.view_date.toISOString()
@@ -421,8 +612,6 @@ class DataViewer {
             let ele = document.getElementById(layer_name+"_load_status");
             if (ele) {
                 ele.style.visibility = "visible";
-            } else {
-                alert("missing");
             }
         });
 
@@ -430,15 +619,12 @@ class DataViewer {
             let ele = document.getElementById(layer_name+"_load_status");
             if (ele) {
                 ele.style.visibility = "hidden";
-            } else {
-                alert("missing");
             }
         });
 
-        let long_description = layer_metadata.long_description;
+        let description = layer_metadata.description;
         const info = $('layer_info');
-        info.innerHTML = long_description;
-
+        info.innerHTML = description;
 
         this.update_history();
         if (this.popup_latlng) {
@@ -446,6 +632,14 @@ class DataViewer {
         }
     }
 
+    /**
+     * Add a set of controls for a given layer to the control panel, returning the div element containing the controls
+     *
+     * @param {string} layer_name the name of the layer to add controls for
+     * @param {object} layer_metadata metadata associated with the layer
+     *
+     * @returns {HTMLDivElement}
+     */
     add_layer_controls(layer_name,layer_metadata) {
 
         function add_spacer(ele) {
@@ -465,6 +659,13 @@ class DataViewer {
             parent.appendChild(d);
         }
         add_spacer(d);
+
+        // add some header information text for the layer (dataset name, layer name, units if defined)
+
+        let h0 = document.createElement("h6");
+        h0.appendChild(document.createTextNode(layer_metadata.dataset_name));
+        d.appendChild(h0);
+
         let h = document.createElement("h6");
         h.appendChild(document.createTextNode(layer_metadata.name));
         d.appendChild(h);
@@ -473,18 +674,15 @@ class DataViewer {
             d.appendChild(document.createTextNode(layer_metadata.units));
         }
 
-        let loading_button = document.createElement("button");
-        loading_button.setAttribute("class","btn btn-warning");
-        loading_button.appendChild(document.createTextNode("Loading..."));
-        loading_button.setAttribute("id",layer_name+"_load_status");
-        loading_button.style.marginLeft = "10px";
-        d.appendChild(loading_button);
-
         add_spacer(d);
+
+        // add the legend
 
         const legend_table_div = document.getElementById('legend_table_div');
 
+        // depending on whether the legend is discrete or continuous...
         if (layer_metadata.legend === "table") {
+            // discrete
             let legend_table_div = document.createElement("div");
             let legend_table = document.createElement("table");
             legend_table.innerHTML = "";
@@ -507,23 +705,27 @@ class DataViewer {
             legend_table_div.appendChild(legend_table);
             d.appendChild(legend_table_div);
         } else {
+            // continuous
             let url = this.get_legend_url(layer_name);
             let legend_img = document.createElement("img");
             legend_img.setAttribute("class", "legend");
             legend_img.style.display = "inline";
             legend_img.setAttribute("src", url);
+            this.legend_imgs[layer_name] = legend_img;
             let legend_table = document.createElement("table");
             legend_table.style.display = "block";
             let tr = document.createElement("tr");
             let td0 = document.createElement("td");
             td0.setAttribute("class","legend_min");
             td0.appendChild(document.createTextNode(""+layer_metadata.min));
+            this.legend_mins[layer_name] = td0;
             let td1 = document.createElement("td");
             td1.setAttribute("class","legend_colourbar");
             td1.appendChild(legend_img);
             let td2 = document.createElement("td");
             td2.setAttribute("class","legend_max");
             td2.appendChild(document.createTextNode(""+layer_metadata.max));
+            this.legend_maxes[layer_name] = td2;
             tr.appendChild(td0);
             tr.appendChild(td1);
             tr.appendChild(td2);
@@ -532,6 +734,7 @@ class DataViewer {
         }
         add_spacer(d);
 
+        // add an opacity slider control and a loading status button
         let opacity_id = layer_name+"_opacity";
         let opacity_div = document.createElement("div");
         let opacity_label = document.createElement("label");
@@ -552,38 +755,74 @@ class DataViewer {
 
         opacity_div.appendChild(opacity_label);
         opacity_div.appendChild(opacity_control);
+        let loading_button = document.createElement("button");
+        loading_button.setAttribute("class","btn btn-warning loading-btn");
+        loading_button.appendChild(document.createTextNode("Loading"));
+        loading_button.setAttribute("id",layer_name+"_load_status");
+        loading_button.style.marginLeft = "10px";
+        opacity_div.appendChild(loading_button);
+
         d.appendChild(opacity_div);
 
         add_spacer(d);
 
+        // add a row of buttons associated with the layer
+
+        // info button
         let button = document.createElement("button");
         button.setAttribute("class","btn btn-light");
-        button.appendChild(document.createTextNode("Information"));
+        button.appendChild(document.createTextNode("Info"));
         button.addEventListener("click", this.create_info_button_callback(layer_name));
-        button.style.marginRight = "10px";
+        button.style.marginRight = "5px";
         d.appendChild(button);
 
+        // for continuous scaled layers, add a rescale button
+        if (layer_metadata.legend !== "table") {
+            let rescale_button = document.createElement("button");
+            rescale_button.setAttribute("class", "btn btn-light");
+            rescale_button.appendChild(document.createTextNode("Rescale"));
+            rescale_button.addEventListener("click", this.create_rescale_button_callback(layer_name));
+            rescale_button.style.marginRight = "5px";
+            d.appendChild(rescale_button);
+        }
+
+        // add a button to remove the layer
         let remove_button = document.createElement("button");
         remove_button.setAttribute("class","btn btn-light");
         remove_button.appendChild(document.createTextNode("Remove"));
         remove_button.addEventListener("click", this.create_remove_button_callback(layer_name));
-        remove_button.style.marginRight = "10px";
+        remove_button.style.marginRight = "5px";
         d.appendChild(remove_button);
 
+        // if this viewer is linked to the data ordering service, add a button to open the data ordering page
         if (this.data_url) {
             let data_button = document.createElement("button");
             data_button.setAttribute("class", "btn btn-light");
-            data_button.appendChild(document.createTextNode("Get Data..."));
+            data_button.appendChild(document.createTextNode("Data"));
             data_button.addEventListener("click", (evt) => {
-                this.get_data_callback(layer_name)
+                this.open_data_ordering_page(layer_name)
             });
-            data_button.style.marginRight = "10px";
+            data_button.style.marginRight = "5px";
             d.appendChild(data_button);
         }
+
+        // add a button that can move this layer to the top
+        let top_btn = document.createElement("button");
+        top_btn.setAttribute("class","btn btn-light");
+        top_btn.setAttribute("id",layer_name+"_top_btn");
+        top_btn.innerHTML = "Top";
+        top_btn.addEventListener("click", this.create_top_button_callback(layer_name));
+        d.appendChild(top_btn);
 
         return d;
     }
 
+    /**
+     * Create a callback for adjusting the opacity
+     *
+     * @param {string} layer_name
+     * @returns {(function(*): void)|*}
+     */
     create_opacity_callback(layer_name) {
         return (ev) => {
             let opacity_fraction = Number.parseFloat(ev.target.value);
@@ -591,22 +830,128 @@ class DataViewer {
         }
     }
 
+    /**
+     * Create a callback for opening the information modal
+     *
+     * @param {string} layer_name
+     * @returns {(function(*): void)|*}
+     */
     create_info_button_callback(layer_name) {
-        let description = this.layer_metadata[layer_name].long_description;
+        let layer_metadata = this.layer_metadata[layer_name];
+        let description = layer_metadata.description;
         return (evt) => {
-            document.getElementById("layer_info").innerHTML = description;
+            document.getElementById("info_label").innerHTML = "Info - " + layer_metadata.dataset_name;
+            document.getElementById("layer_info_dataset").innerHTML = layer_metadata.dataset_description;
+            document.getElementById("layer_info_variable").innerHTML = "Variable: "+ layer_metadata.name;
+            document.getElementById("layer_info").innerHTML = ""; // description !== layer_metadata.dataset_description ? description : "";
+            document.getElementById("layer_info_date_range").innerText = layer_metadata.start_date ?
+                (layer_metadata.start_date + " to " + layer_metadata.end_date) : "";
+            if (layer_metadata.link) {
+                document.getElementById("layer_info_link").innerHTML = "<a target=\"_new\" href=\""+layer_metadata.link+"\">More Information on this data...</a>";
+            } else {
+                document.getElementById("layer_info_link").innerHTML = "";
+            }
             this.info_modal.show();
             evt.preventDefault();
             evt.stopPropagation();
         }
     }
 
+    /**
+     * Create a callback for rescaling the layer's colour scale
+     *
+     * @param {string} layer_name
+     * @returns {(function(*): void)|*}
+     */
+    create_rescale_button_callback(layer_name) {
+        return (evt) => {
+            let defn = this.layer_metadata[layer_name];
+            this.scale_min.value = defn.min;
+            this.scale_max.value = defn.max;
+            this.scale_cmap.value = defn.cmap;
+            this.scale_modal.show();
+            setTimeout(() => {
+                for (let idx = 0; idx < this.scale_cmap.childElementCount; idx++) {
+                    let option = this.scale_cmap.children[idx];
+                    if (option.getAttribute("value") === defn.cmap) {
+                        option.scrollIntoView();
+                    }
+                }
+            },500);
+            this.scale_update_btn.onclick = (evt) => {
+                defn.cmap = this.scale_cmap.value;
+                defn.min = Number.parseFloat(this.scale_min.value);
+                defn.max = Number.parseFloat(this.scale_max.value);
+                this.current_layers[layer_name].setParams({'CMAP': defn.cmap, 'VMIN':defn.min, 'VMAX':defn.max});
+                this.legend_imgs[layer_name].setAttribute("src",this.get_legend_url(layer_name));
+                this.legend_mins[layer_name].innerText = this.scale_min.value;
+                this.legend_maxes[layer_name].innerText = this.scale_max.value;
+            }
+            evt.preventDefault();
+            evt.stopPropagation();
+        }
+    }
+
+    /**
+     * Create a callback for removing a layer
+     *
+     * @param {string} layer_name
+     * @returns {(function(*): void)|*}
+     */
     create_remove_button_callback(layer_name) {
         return (evt) => {
             this.remove_layer(layer_name);
         }
     }
 
+    /**
+     * Create a callback for moving a layer to the front
+     *
+     * @param {string} layer_name
+     * @returns {(function(*): void)|*}
+     */
+    create_top_button_callback(layer_name) {
+        return (evt) => {
+            this.current_layer_names = [layer_name].concat(this.current_layer_names.filter((name) => name != layer_name));
+            this.current_layers[layer_name].bringToFront();
+            let controls = this.layer_controls[layer_name];
+            let container = controls.parentElement;
+            container.removeChild(controls);
+            if (container.firstChild) {
+                container.insertBefore(controls, container.firstChild);
+            } else {
+                container.appendChild(controls);
+            }
+            this.update_top_buttons();
+        }
+    }
+
+    /**
+     * Enable/disable the "top" buttons for each layer according to whether the
+     * layer is already at the top (disable the top button) or not (enable the top button)
+     */
+    update_top_buttons() {
+        // enable the top button on all other layers except the first
+        for (let idx=0; idx<this.current_layer_names.length; idx++) {
+            let layer_name = this.current_layer_names[idx];
+            let btn_id = layer_name + "_top_btn";
+            let btn = document.getElementById(btn_id);
+            if (btn) {
+                if (idx===0) {
+                    btn.disabled = true;
+                } else {
+                    btn.disabled = false;
+                }
+            }
+        }
+    }
+
+    /**
+     * Called to update a popup
+     *
+     * @param {object} latlng a leaflet object defining lng and lat properties
+     * @returns {Promise<void>}
+     */
     async update_popup(latlng) {
 
         let lon = latlng.lng;
@@ -656,7 +1001,7 @@ class DataViewer {
                 console.error(e)
             });
         }
-        console.log("html="+html);
+
         if (html) {
             html = "<p></p><p>" + location + "</p>" + html;
             popup
@@ -666,10 +1011,23 @@ class DataViewer {
         }
     }
 
+    /**
+     * Check for a search case-insensitive match
+     *
+     * @param {string} search_text the text to search for
+     * @param {string} searchable_text the text to search in
+     * @returns {boolean} whether the search text was found or not
+     */
     search_match(search_text, searchable_text) {
         return (searchable_text.toLowerCase().search(search_text.toLowerCase()) != -1);
     }
 
+    /**
+     * Create a callback to add a layer to the viewer
+     *
+     * @param {string} layer_name
+     * @returns {(function(*): void)|*}
+     */
     make_add_layer_callback(layer_name) {
         return (ev) => {
             this.add_layer(layer_name);
@@ -677,7 +1035,12 @@ class DataViewer {
         }
     }
 
-    get_data_callback(layer_name) {
+    /**
+     * Open the data ordering page in a new tab configured for a particular layer's dataset and variable
+     *
+     * @param {string} layer_name
+     */
+    open_data_ordering_page(layer_name) {
         let metadata = this.layer_metadata[layer_name];
         let url = this.data_url+"?dataset="+metadata["dataset"]+"&variable="+metadata["variable"];
         if (this.view_date) {
@@ -689,17 +1052,29 @@ class DataViewer {
         window.open(url,"_new");
     }
 
+    /**
+     * perform a search through layer metadata, opening the results in a modal window
+     *
+     * @param {string} search_text the search string
+     */
     run_search(search_text) {
-        let matching_layers = [];
+        let matching_layers = {}; // dataset => [layer_name]
         for (let layer_name in this.layer_metadata) {
             let metadata = this.layer_metadata[layer_name];
             if (metadata.disabled) {
                 continue;
             }
-            ["name", "short_description", "long_description"].forEach(field => {
-                if (this.search_match(search_text, metadata[field])) {
-                    if (!matching_layers.includes(layer_name)) {
-                        matching_layers.push(layer_name);
+            ["dataset_name", "dataset_description", "name", "description"].forEach(field => {
+                if ((field in metadata) && this.search_match(search_text, metadata[field])) {
+                    let dataset = metadata["dataset"];
+                    if (dataset) {
+                        if (!(dataset in matching_layers)) {
+                            matching_layers[dataset] = [];
+                        }
+
+                        if (!matching_layers[dataset].includes(layer_name)) {
+                            matching_layers[dataset].push(layer_name);
+                        }
                     }
                 }
             });
@@ -712,24 +1087,72 @@ class DataViewer {
         } else {
             let ul = document.createElement("ul");
             search_results.appendChild(ul);
-            for (let idx = 0; idx < matching_layers.length; idx++) {
-                let layer_name = matching_layers[idx];
+            for(let dataset in matching_layers) {
                 let li = document.createElement("li");
-                let a = document.createElement("a");
-                a.setAttribute("class", "search_link");
-                let p = document.createElement("p");
-                let txt = document.createTextNode(this.layer_metadata[layer_name].name);
-                li.appendChild(a);
-                a.appendChild(txt);
-                let desc_txt = document.createTextNode(this.layer_metadata[layer_name].short_description);
-                p.appendChild(desc_txt);
-                li.appendChild(p);
-                a.addEventListener("click", this.make_add_layer_callback(layer_name));
+                let first_layer_name = matching_layers[dataset][0];
+                li.appendChild(document.createTextNode(this.layer_metadata[first_layer_name].dataset_name));
+                let dataset_description = document.createElement("p");
+
+                dataset_description.appendChild(document.createTextNode(this.layer_metadata[first_layer_name].dataset_description));
+
+                let button = document.createElement("a");
+                button.setAttribute("class", "dataset_link");
+                dataset_description.appendChild(button);
+                li.appendChild(dataset_description);
+
+                let sul = document.createElement("ul");
+                let layer_id = dataset+"_layers";
+                sul.setAttribute("id",layer_id);
+                sul.setAttribute("class", "display:none;");
+                let handler = this.create_dataset_list_handler(sul,button);
+                handler();
+                button.addEventListener("click",handler);
+                li.appendChild(sul);
                 ul.appendChild(li);
+                for (let idx = 0; idx < matching_layers[dataset].length; idx++) {
+                    let layer_name = matching_layers[dataset][idx];
+                    let li = document.createElement("li");
+                    let a = document.createElement("a");
+                    a.setAttribute("class", "search_link");
+                    let p = document.createElement("p");
+                    let txt = document.createTextNode(this.layer_metadata[layer_name].name);
+                    li.appendChild(a);
+                    a.appendChild(txt);
+                    if (this.layer_metadata[layer_name].description && this.layer_metadata[layer_name].description !== this.layer_metadata[layer_name].name) {
+                        let desc_txt = document.createTextNode(this.layer_metadata[layer_name].description);
+                        p.appendChild(desc_txt);
+                    }
+                    li.appendChild(p);
+                    a.addEventListener("click", this.make_add_layer_callback(layer_name));
+                    sul.appendChild(li);
+                }
             }
         }
     }
 
+    /**
+     * Create a callback function to manage the search results for a group of layers which belong to a particular dataset
+     * @param layer_list
+     * @param button
+     * @returns {(function(): void)|*}
+     */
+    create_dataset_list_handler(layer_list, button) {
+        let list_open = true;
+        return () => {
+            list_open = !list_open;
+            if (list_open) {
+                layer_list.setAttribute("style", "display:block;");
+                button.innerHTML = "[Hide Layers]";
+            } else {
+                layer_list.setAttribute("style", "display:none;");
+                button.innerHTML = "[Show Layers]";
+            }
+        }
+    }
+
+    /**
+     * Bind search and add layer controls
+     */
     bind() {
         $("#search_btn").get(0).addEventListener("click", (evt) => {
 
@@ -757,12 +1180,18 @@ class DataViewer {
 
     }
 
-    add_time_slider() {
+    /**
+     * Add a time slider control to the viewer
+     *
+     * @param {string} step the time step, currently accepts "daily" or "monthly"
+     */
+    add_time_slider(step) {
         if (this.slider) {
             this.remove_time_slider();
         }
         $("#slider_div").get(0).innerHTML = "";
-        this.slider = new TimeSlider("slider_div", this.start_date, this.end_date, this.view_date);
+
+        this.slider = new TimeSlider("slider_div", this.start_date, this.end_date, this.view_date, step);
         window.addEventListener("resize", (evt) => {
             this.slider.resize();
         });
@@ -773,6 +1202,9 @@ class DataViewer {
         });
     }
 
+    /**
+     * Remove the time slider from the viewer
+     */
     remove_time_slider() {
         document.getElementById("slider_div").innerHTML = "";
         this.slider = null;

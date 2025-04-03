@@ -5,7 +5,7 @@ This mapproxy service will serve OSM WMS imagery in EPSG:27700
 # installation
 
 ```
-conda env create -n mapproxy_env python=3.10
+conda create -n mapproxy_env python=3.10
 conda activate mapproxy_env
 pip install mapproxy
 pip install pyproj

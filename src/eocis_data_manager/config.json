@@ -39,6 +39,38 @@
         "temporal_resolution": "daily",
         "spatial_resolution": 0.01
       }
+    },
+    "aerosol_slstr_daily_s3a": {
+      "name":"AEROSOL observations daily - Sentinel 3A",
+      "datasets": ["aerosol_slstr_daily_s3a"],
+      "spec": {
+        "temporal_resolution": "daily",
+        "spatial_resolution": 1
+      }
+    },
+    "aerosol_slstr_daily_s3b": {
+      "name":"AEROSOL observations daily - Sentinel 3B",
+      "datasets": ["aerosol_slstr_daily_s3b"],
+      "spec": {
+        "temporal_resolution": "daily",
+        "spatial_resolution": 1
+      }
+    },
+    "aerosol_slstr_monthly_s3a": {
+      "name":"AEROSOL observations monthly - Sentinel 3A",
+      "datasets": ["aerosol_slstr_monthly_s3a"],
+      "spec": {
+        "temporal_resolution": "monthly",
+        "spatial_resolution": 1
+      }
+    },
+    "aerosol_slstr_monthly_s3b": {
+      "name":"AEROSOL observations monthly - Sentinel 3B",
+      "datasets": ["aerosol_slstr_monthly_s3b"],
+      "spec": {
+        "temporal_resolution": "monthly",
+        "spatial_resolution": 1
+      }
     }
   },
   "defaults": {
@@ -57,139 +89,203 @@
   "datasets": {
     "sst": {
       "defaults": "global",
-      "name": "Sea Surface Temperatures",
-      "short_description": "Daily Sea Surface Temperature Estimates",
-      "long_description": "This dataset provides daily estimates of global sea surface temperature (SST) based on observations from multiple satellite sensors.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
+      "name": "EOCIS Sea Surface Temperature",
+      "description": "This dataset provides daily estimates of global sea surface temperature (SST) based on observations from multiple satellite sensors.\n\nResolution: 5km.\n\n.Available from 1980 to current.",
       "temporal_resolution": "daily",
       "spatial_resolution": 0.05,
       "collection": "eocis-sst-cdrv3",
       "version": "3.0",
       "level": "L4",
-      "variables": {
-        "analysed_sst": {
-          "name": "Sea Surface Temperature",
-          "short_description": "Daily Sea Surface Temperature Estimates"
-        },
-        "analysed_sst_uncertainty": {
-          "name": "Sea Surface Temperature Uncertainty",
-          "short_description": "Daily Sea Surface Temperature Estimate Uncertainties"
-        },
-        "sea_ice_fraction": {
-          "name": "Sea Ice Fraction"
-        },
-        "sea_fraction": {
-          "name": "Sea Fraction"
-        },
-        "analysed_sst_anomaly": {
-          "name": "Sea Surface Temperatures Anomalies",
-          "short_description": "Daily Sea Surface Temperature Anomaly Estimates",
-          "long_description": "This dataset provides estimates of the difference between global sea surface temperature (SST) based on observations from multiple satellite sensors and the historical average value.\n\nResolution: 5km.\n\n.Available from September 1981 to current. <a href=\"https://eocis.org/dataset-sea-surface-temperatures/\" target=\"_blank\">More Information</a>",
-          "based_on_variable": "analysed_sst",
-          "climatology_path": "/data/esacci_sst/CDR_v3/Climatology/L4/v3.0.1/D{DOY}-ESACCI-L4_GHRSST-SSTdepth-Climatology-GLOB_CDR3.0-v02.0-fv01.0.nc"
-        }
-      }
+      "link": "https://eocis.org/dataset-sea-surface-temperatures/"
     },
     "lst_s3a_day": {
       "defaults": "global",
-      "name": "Daytime Land Surface Temperatures - Sentinel3A",
-      "long_description": "This dataset provides EOCIS land surface temperature daytime data.\n\nResolution: 5km.\n\n.Available from 2016 to current. <a href=\"https://eocis.org/dataset-land-surface-temperatures/\" target=\"_blank\">More Information</a>",
+      "name": "EOCIS Daytime Land Surface Temperatures - Sentinel3A",
+      "description": "This dataset provides EOCIS land surface temperature daytime data. Resolution: 5km.",
       "temporal_resolution": "daily",
       "spatial_resolution": 0.01,
       "collection": "eocis-lst-s3a-day",
       "version": "3.0",
-      "level": "L4",
-      "variables": {
-        "lst": {
-          "name": "Daytime Land Surface Temperatures - Sentinel3A",
-          "short_description": "Daily Daytime Land Surface Temperature Estimates observed by Sentinel3A"
-        }
-      }
+      "level": "L3",
+      "link": "https://eocis.org/dataset-land-surface-temperatures/"
     },
     "lst_s3b_day": {
       "defaults": "global",
-      "name": "Daytime Land Surface Temperatures - Sentinel3B",
-      "long_description": "This dataset provides EOCIS land surface temperature daytime data.\n\nResolution: 5km.\n\n.Available from 2016 to current. <a href=\"https://eocis.org/dataset-land-surface-temperatures/\" target=\"_blank\">More Information</a>",
+      "name": "EOCIS Daytime Land Surface Temperatures - Sentinel3B",
+      "description": "This dataset provides EOCIS land surface temperature daytime data.  Resolution: 5km.",
       "temporal_resolution": "daily",
       "spatial_resolution": 0.01,
       "collection": "eocis-lst-s3b-day",
       "version": "3.0",
-      "level": "L4",
-      "variables": {
-        "lst": {
-          "name": "Daytime Land Surface Temperatures - Sentinel3B",
-          "short_description": "Daily Daytime Land Surface Temperature Estimates observed by Sentinel3B"
-        }
-      }
+      "level": "L3",
+      "link": "https://eocis.org/dataset-land-surface-temperatures/"
     },
     "lst_s3a_night": {
       "defaults": "global",
-      "name": "Nightime Land Surface Temperatures - Sentinel3A",
-      "long_description": "This dataset provides EOCIS land surface temperature nighttime data.\n\nResolution: 5km.\n\n.Available from 2016 to current. <a href=\"https://eocis.org/dataset-land-surface-temperatures/\" target=\"_blank\">More Information</a>",
+      "name": "EOCIS Nightime Land Surface Temperatures - Sentinel3A",
+      "description": "This dataset provides EOCIS land surface temperature nighttime data.  Resolution: 5km.",
       "temporal_resolution": "daily",
       "spatial_resolution": 0.01,
       "collection": "eocis-lst-s3a-night",
       "version": "3.0",
-      "level": "L4",
-      "variables": {
-        "lst": {
-          "name": "Nighttime Land Surface Temperatures - Sentinel3A",
-          "short_description": "Daily Nighttime Land Surface Temperature Estimates observed by Sentinel3A"
-        }
-      }
+      "level": "L3",
+      "link": "https://eocis.org/dataset-land-surface-temperatures/"
     },
     "lst_s3b_night": {
       "defaults": "global",
-      "name": "Nighttime Land Surface Temperatures - Sentinel3B",
-      "long_description": "This dataset provides EOCIS land surface temperature nighttime data.\n\nResolution: 5km.\n\n.Available from 2016 to current. <a href=\"https://eocis.org/dataset-land-surface-temperatures/\" target=\"_blank\">More Information</a>",
+      "name": "EOCIS Nighttime Land Surface Temperatures - Sentinel3B",
+      "description": "This dataset provides EOCIS land surface temperature nighttime data.  Resolution: 5km.",
       "temporal_resolution": "daily",
       "spatial_resolution": 0.01,
       "collection": "eocis-lst-s3b-night",
       "version": "3.0",
-      "level": "L4",
+      "level": "L3",
+      "link": "https://eocis.org/dataset-land-surface-temperatures/"
+    },
+    "aerosol_slstr_daily_s3a": {
+      "defaults": "global",
+      "name":"AEROSOL observations daily - Sentinel 3A",
+      "description": "This dataset contains the level-3 daily mean aerosol properties products from Sentinel-3A SLSTR satellite observations. Data are processed using the Swansea University algorithm",
+      "temporal_resolution": "daily",
+      "spatial_resolution": 1,
+      "collection": "eocis-aerosol-slstr-daily-s3a",
+      "version": "1.14.1",
+      "level": "L3",
+      "link": "https://eocis.org/dataset-aerosol-and-particulate-matter/",
+      "x_coordinate": "longitude",
+      "y_coordinate": "latitude",
+      "x_dimension": "longitude",
+      "y_dimension": "latitude"
+    },
+    "aerosol_slstr_daily_s3b": {
+      "defaults": "global",
+      "name":"EOCIS AEROSOL observations daily - Sentinel 3B",
+      "description": "This dataset contains the level-3 daily mean aerosol properties products from Sentinel-3B SLSTR satellite observations. Data are processed using the Swansea University algorithm",
+      "temporal_resolution": "daily",
+      "spatial_resolution": 1,
+      "collection": "eocis-aerosol-slstr-daily-s3b",
+      "version": "1.14.1",
+      "level": "L3",
+      "link": "https://eocis.org/dataset-aerosol-and-particulate-matter/",
+      "x_coordinate": "longitude",
+      "y_coordinate": "latitude",
+      "x_dimension": "longitude",
+      "y_dimension": "latitude"
+    },
+    "aerosol_slstr_monthly_s3a": {
+      "defaults": "global",
+      "name":"EOCIS AEROSOL observations monthly - Sentinel 3A",
+      "description": "This dataset contains the level-3 monthly mean aerosol properties products from Sentinel-3A SLSTR satellite observations. Data are processed using the Swansea University algorithm",
+      "temporal_resolution": "monthly",
+      "spatial_resolution": 1,
+      "collection": "eocis-aerosol-slstr-monthly-s3a",
+      "version": "1.14.1",
+      "level": "L3",
+      "link": "https://eocis.org/dataset-aerosol-and-particulate-matter/",
+      "x_coordinate": "longitude",
+      "y_coordinate": "latitude",
+      "x_dimension": "longitude",
+      "y_dimension": "latitude"
+    },
+    "aerosol_slstr_monthly_s3b": {
+      "defaults": "global",
+      "name":"EOCIS AEROSOL observations monthly - Sentinel 3B",
+      "description": "This dataset contains the level-3 monthly mean aerosol properties products from Sentinel-3B SLSTR satellite observations. Data are processed using the Swansea University algorithm",
+      "temporal_resolution": "monthly",
+      "spatial_resolution": 1,
+      "collection": "eocis-aerosol-slstr-monthly-s3b",
+      "version": "1.14.1",
+      "level": "L3",
+      "link": "https://eocis.org/dataset-aerosol-and-particulate-matter/",
+      "x_coordinate": "longitude",
+      "y_coordinate": "latitude",
+      "x_dimension": "longitude",
+      "y_dimension": "latitude"
+    },
+    "land_ice_elevation": {
+      "name": "5yr Ice Sheet Surface Elevation Change at 5.0km resolution",
+      "description": "5yr Ice Sheet Surface Elevation Change at 5.0km resolution from 2017-02-28 00:00:00 to 2022-02-28 00:00:00 from Multi-Mission Radar Altimetry",
+      "path": "/data/EOCIS-AIS-L3C-SEC-MULTIMISSION-5KM-5YEAR-MEANS-201702-202202-fv1.nc",
       "variables": {
-        "lst": {
-          "name": "Nighttime Land Surface Temperatures - Sentinel3B",
-          "short_description": "Daily Nighttime Land Surface Temperature Estimates observed by Sentinel3B"
+        "sec": {
+          "name": "Surface Elevation Change"
         }
-      }
+      },
+      "x_coordinate": "x",
+      "y_coordinate": "y",
+      "x_dimension": "nx",
+      "y_dimension": "ny",
+      "reindex": true
+    },
+    "arctic_sea_ice_thickness": {
+      "name": "Arctic Monthly Gridded Sea Ice Thickness Product from CryoSat-2",
+      "description": "",
+      "collection": "eocis-arctic-sea-ice-thickness-monthly",
+      "temporal_resolution": "monthly",
+      "spatial_resolution": 5000,
+      "x_coordinate": "xc",
+      "y_coordinate": "yc",
+      "x_dimension": "xc",
+      "y_dimension": "yc",
+      "level": "L3",
+      "version": "v1.0"
     },
     "chuk_elevation": {
-       "name": "Elevation",
-       "short_description": "UK Elevation Data",
-       "long_description": "Each UK 100m grid cell is assigned an elevation above sea level",
-       "path": "/data/chuk/geospatial_information/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-ELEVATION-MERGED-2023-fv1.0.nc",
-       "variables": {
-        "elevation" : {
+      "name": "EOCIS CHUK Elevation",
+      "description": "Each UK 100m grid cell is assigned an elevation above sea level",
+      "path": "/data/chuk/geospatial_information/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-ELEVATION-MERGED-2023-fv1.0.nc",
+      "variables": {
+        "elevation": {
           "name": "Elevation"
         }
       }
     },
     "chuk_builtarea": {
-      "name": "UK Built Area Statistics",
+      "name": "EOCIS CHUK Built Area Statistics",
       "path": "/data/chuk/geospatial_information/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-BUILTAREA-MERGED-2023-fv1.1.nc",
       "variables": {
         "urban_area": {
           "name": "Urban Area Fraction",
-          "short_description": "Fraction of 100m CHUK grid cells designated as urban",
-          "long_description": "Fraction of 100m CHUK grid cells with land cover designated as urban"
+          "description": "Fraction of 100m CHUK grid cells with land cover designated as urban"
         },
         "suburban_area": {
           "name": "Suburban Area Fraction",
-          "short_description": "Fraction of 100m CHUK grid cells designated as suburban",
-          "long_description": "Fraction of 100m CHUK grid cells with land cover designated as suburban"
+          "description": "Fraction of 100m CHUK grid cells with land cover designated as suburban"
         }
       }
     },
     "chuk_landcover": {
-      "name": "Land Cover",
-      "short_description": "UK Land Cover",
-      "long_description": "Each UK 100m grid cell is assigned a land cover type",
+      "name": "EOCIS CHUK Land Cover",
+      "description": "Each UK 100m grid cell is assigned a land cover type",
       "variables": {
         "land_cover": {
           "name": "Land cover"
         }
       },
       "path": "/data/chuk/geospatial_information/EOCIS-CHUK_GEOSPATIAL_INFORMATION-L4-LANDCOVER-MERGED-2023-fv1.1.nc"
+    },
+    "chuk_lst_nn": {
+      "disabled": true,
+      "name": "Land Surface Temperature Estimates",
+      "description": "Daily UK Land Surface Temperature Estimates",
+      "start_date": "2014-01-01",
+      "end_date": "2023-12-31",
+      "temporal_resolution": "daily",
+      "variables": {
+        "lst_model_estimate": {
+          "name": "LST Model Estimates"
+        },
+        "lst_model_traintest": {
+          "name": "LST Model identify areas used for Train or Test"
+        },
+        "lst_era5land_skt": {
+          "name": "LST Estimates from Era5 Land"
+        },
+        "lst_landsat_observations": {
+          "name": "LST Observations from Landsat 8/9"
+        }
+      },
+      "path": "/data/chuk/lst/data_product/{YYYY}/{MM}/{DD}/EOCIS-CHUK_LST_NN-L4-LST-MERGED-{YYYY}{MM}{DD}-fv1.0.nc"
     }
   }
 }

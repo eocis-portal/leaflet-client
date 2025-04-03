@@ -25,8 +25,6 @@ import datetime
 from eocis_wms_service.load.layer_loader import LayerLoader
 from config import Config
 
-
-
 layer_loader = LayerLoader(Config.DATA_CONFIGURATION_PATH, Config.VIEWER_CONFIGURATION_PATH, Config.SCRATCH_AREA)
 
 app = Flask(__name__)
@@ -50,22 +48,26 @@ class App:
         return send_from_directory('../../../map_viewer/static', 'index.html')
 
     @staticmethod
-    @app.route('/', methods=['GET'])
     @app.route('/index_chuk.html', methods=['GET'])
     def fetch_chuk():
         return send_from_directory('../../../map_viewer/static', 'index_chuk.html')
 
     @staticmethod
+    @app.route('/index_chuk_test.html', methods=['GET'])
+    def fetch_chuk_test():
+        return send_from_directory('../../../map_viewer/static', 'index_chuk_test.html')
+
+    @staticmethod
     @app.route('/legend', methods=['GET'])
     def legend():
-        layer = request.args.get("layer")
-        img = layer_loader.get_legend(layer)
+        cmap = request.args.get("cmap")
+        img = layer_loader.get_legend(cmap)
         return send_file(img, mimetype='image/png')
 
     @staticmethod
     @app.route('/layers/<string:subset_name>', methods=['GET'])
     def layers(subset_name):
-        response = jsonify(layer_loader.get_layer_definitions(subset_name))
+        response = jsonify(layer_loader.get_layers_in_subset(subset_name))
         return response
 
     @staticmethod
@@ -80,6 +82,9 @@ class App:
             srs = request.args.get("srs")
             bbox = request.args.get("bbox")
             time = request.args.get("TIME")
+            cmap = request.args.get("CMAP")
+            vmin = float(request.args.get("VMIN"))
+            vmax = float(request.args.get("VMAX"))
             dt = datetime.datetime.strptime(time[:16],"%Y-%m-%dT%H:%M").replace(tzinfo=None) if time else None
 
             coords = bbox.split(",")
@@ -88,7 +93,7 @@ class App:
             y_max = float(coords[2])
             x_max = float(coords[3])
             try:
-                img = layer_loader.get_image(layers,dt,width,height,x_min,y_min,x_max,y_max)
+                img = layer_loader.get_image(layers,dt,width,height,x_min,y_min,x_max,y_max,cmap,vmin,vmax)
                 return send_file(img, mimetype='image/png')
             except Exception as ex:
                 print(ex)
@@ -127,5 +132,8 @@ if __name__ == '__main__':
     port = app.config.get("PORT", 9019)
     print(f"http://{host}:{port}/index.html")
     print(f"http://{host}:{port}/index_chuk.html")
+    print(f"http://{host}:{port}/index_antarctic.html")
+    print(f"http://{host}:{port}/index_chuk_test.html")
+    print(f"http://{host}:{port}/index_arctic.html")
     logging.basicConfig(level=logging.INFO)
     app.run(host=host,port=port,threaded=True)

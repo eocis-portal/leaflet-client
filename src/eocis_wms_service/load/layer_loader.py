@@ -16,7 +16,7 @@
 # NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+import copy
 import json
 import logging
 import os
@@ -46,40 +46,72 @@ class LayerLoader:
         with open(viewer_config_path) as f:
             self.config = json.loads(f.read())
 
-        # get a flattened list of all layers
+        # get an expanded layer list
+        self.expanded_config = copy.deepcopy(self.config)
+
+        # get a flattened dict of all layers by name
         self.layer_definitions = {}
+
         for subset_name in self.config:
+            self.expanded_config[subset_name]["layers"] = {}
             for layer_name in self.config[subset_name]["layers"]:
-                print(layer_name)
                 self.logger.info(f"Loading layer {layer_name}")
                 layer = self.config[subset_name]["layers"][layer_name]
-                if layer_name in self.layer_definitions:
-                    raise Exception(f"layer {layer_name} appears in multiple subsets")
-                self.layer_definitions[layer_name] = layer
-                layer["subset"] = subset_name
-                layer["projection"] = self.config[subset_name]["projection"]
+                if layer.get("disabled",False):
+                    continue
+
+                if "variables" in layer:
+                    variables = layer["variables"]
+                else:
+                    variables = [layer["variable"]]
+
                 dataset_id = layer["dataset"]
-                variable_id = layer["variable"]
                 dataset = self.data_schema.get_dataset(dataset_id)
+
                 if dataset.start_date is not None:
                     layer["start_date"] = dataset.start_date.strftime("%Y-%m-%d")
+                else:
+                    layer["start_date"] = ""
                 if dataset.end_date is not None:
                     layer["end_date"] = dataset.end_date.strftime("%Y-%m-%d")
-                variable = dataset.get_variable(variable_id)
-                if "name" not in layer:
-                    layer["name"] = variable.variable_name
-                if "short_description" not in layer:
-                    layer["short_description"] = variable.short_description
-                if "long_description" not in layer:
-                    layer["long_description"] = variable.long_description
+                else:
+                    layer["end_date"] = ""
 
-    def get_layer_definitions(self, subset_name):
-        return self.config[subset_name]
+                for variable_id in variables:
+                    variable_layer_name = layer_name+"_"+variable_id
+                    variable_layer = copy.deepcopy(layer)
+                    if "variables" in variable_layer:
+                        del variable_layer["variables"]
+                    if variable_layer_name in self.layer_definitions:
+                        raise Exception(f"layer {variable_layer_name} appears in multiple subsets")
 
-    def get_legend(self, layer_name, width=300, height=30):
+                    self.expanded_config[subset_name]["layers"][variable_layer_name] = variable_layer
+                    self.layer_definitions[variable_layer_name] = variable_layer
+                    variable_layer["subset"] = subset_name
+                    variable_layer["projection"] = self.config[subset_name]["projection"]
+                    if dataset.temporal_resolution:
+                        variable_layer["step"] = dataset.temporal_resolution
+                    variable_layer["variable"] = variable_id
+                    variable = dataset.get_variable(variable_id)
+                    if "name" not in variable_layer:
+                        variable_layer["name"] = variable.variable_name
+                    if "description" not in variable_layer:
+                        variable_layer["description"] = variable.description
+                    variable_layer["link"] = dataset.link
 
-        vmin = self.layer_definitions[layer_name]["min"]
-        vmax = self.layer_definitions[layer_name]["max"]
+                    variable_layer["dataset_name"] = dataset.dataset_name
+                    variable_layer["dataset_description"] = dataset.description
+
+                    print("Defining Layer:", variable_layer_name, layer["start_date"], layer["end_date"])
+
+
+    def get_layers_in_subset(self, subset_name):
+        return self.expanded_config[subset_name]
+
+    def get_legend(self, cmap, width=300, height=30):
+
+        vmin = 0
+        vmax = 100
 
         ldata = xr.DataArray(np.zeros((height, width)), dims=("y", "x"))
         ldata["x"] = xr.DataArray(np.arange(0, width), dims=("x",))
@@ -95,7 +127,7 @@ class LayerLoader:
 
         lagg = lcvs.raster(ldata, agg=rd.first, interpolate='linear')
 
-        lshaded = tf.shade(lagg, cmap=self.get_cmap(self.layer_definitions[layer_name]["cmap"]),
+        lshaded = tf.shade(lagg, cmap=self.get_cmap(cmap),
                            how="linear",
                            span=(vmin, vmax))
 
@@ -124,19 +156,19 @@ class LayerLoader:
 
         return da
 
-    def get_image(self, layer_name, dt, width, height, x_min, y_min, x_max, y_max):
+    def get_image(self, layer_name, dt, width, height, x_min, y_min, x_max, y_max, cmap, minv, maxv):
         try:
             layer_definition = self.layer_definitions[layer_name]
-            minv = layer_definition["min"]
-            maxv = layer_definition["max"]
+
             subset = layer_definition["subset"]
             clip_min = layer_definition.get("clip_min",None)
 
-            if subset == "chuk":
+            if subset == "chuk" or subset == "chuk_test" or subset == "antarctic" or subset == "arctic":
                 # TODO for some reason leaflet is sending x and y swapped for EPSG:27700
                 # workaround for now by swapping
                 x_min, y_min = (y_min, x_min)
                 x_max, y_max = (y_max, x_max)
+
             aggfn = layer_definition.get("aggfn","mean")
 
             if aggfn == "mode":
@@ -166,7 +198,7 @@ class LayerLoader:
 
             agg = cvs.raster(da, agg=agg, interpolate='nearest')
 
-            shaded = tf.shade(agg, cmap=self.get_cmap(self.layer_definitions[layer_name]["cmap"]),
+            shaded = tf.shade(agg, cmap=self.get_cmap(cmap),
                               how="linear",
                               span=(minv, maxv))
 
@@ -196,7 +228,8 @@ class LayerLoader:
         if da is not None:
 
             if crs != "EPSG:4326":
-                x,y = pyproj.transform("EPSG:4326",crs,x,y,always_xy=True)
+                transformer = pyproj.Transformer.from_crs(4326, int(crs.split(":")[1]), always_xy=True)
+                x,y = transformer.transform(x,y)
 
             x_dim = layer_definition.get("x_dim", "lon")
             y_dim = layer_definition.get("y_dim", "lat")

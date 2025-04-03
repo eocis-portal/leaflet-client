@@ -31,12 +31,12 @@ from eocis_data_manager.dataset import DataSet
 class Extractor(object):
 
     """
-    This class handles the efficient extraction of data from the input datset
+    This class handles the efficient extraction of data from the input dataset
     for the exact time bounded regions to be processed, and providing an iterator to lazily return data
     for each discrete time point.
     """
 
-    def __init__(self, data_loader:DataLoader, dataset:DataSet, variable_names:list[str], t_dim_name:str):
+    def __init__(self, data_loader:DataLoader, dataset:DataSet, variable_names:list[str]):
         """
         Constructor
 
@@ -46,14 +46,10 @@ class Extractor(object):
             the dataset instance
         :param variable_names:
             list of variable names to include
-        :param t_dim_name:
-            the name of the time dimension
         """
         self.data_loader = data_loader
         self.dataset = dataset
         self.variable_names = variable_names
-        self.t_dim_name = t_dim_name
-
 
     def generate_year_data(self, start_date:datetime.datetime, end_date:datetime.datetime):
         """Generator that yields the time period within a year

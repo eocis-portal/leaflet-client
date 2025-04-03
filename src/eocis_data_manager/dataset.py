@@ -35,14 +35,11 @@ The dataset module deals with the representation of a dataset, consisting of one
 
 class Variable:
 
-    def __init__(self,variable_id:str,variable_name:str,climatology_path:str, based_on_variable:str,
-                 short_description:str="", long_description:str=""):
+    def __init__(self,variable_id:str,variable_name:str,
+                 description:str=""):
         self.variable_id = variable_id
         self.variable_name = variable_name
-        self.climatology_path = climatology_path
-        self.based_on_variable = based_on_variable
-        self.short_description = short_description
-        self.long_description = long_description
+        self.description = description
 
     def __repr__(self) -> str:
         return f"Variable({self.variable_id},{self.variable_name})"
@@ -51,17 +48,18 @@ class Variable:
 class DataSet:
 
     def __init__(self, dataset_id:str, dataset_name:str,
-                 short_description:str, long_description: str,
+                 description:str,
                  temporal_resolution:str, spatial_resolution:str,
                  start_date:datetime.date, end_date:datetime.date, collection:str,
                  path: str,
                  variables:list[Variable],
                  x_min: float, y_min: float, x_max: float, y_max: float,
-                 license:str="", citation:str="", enabled=True):
+                 x_coord_name:str, y_coord_name:str,
+                 x_dim_name:str, y_dim_name:str,
+                 license:str="", citation:str="", enabled=True, link="", reindex=False):
         self.dataset_id = dataset_id
         self.dataset_name = dataset_name
-        self.short_description = short_description
-        self.long_description = long_description
+        self.description = description
         self.temporal_resolution = temporal_resolution
         self.spatial_resolution = spatial_resolution
         self.start_date = start_date
@@ -76,6 +74,12 @@ class DataSet:
         self.x_max = x_max
         self.y_min = y_min
         self.y_max = y_max
+        self.x_coord_name = x_coord_name
+        self.y_coord_name = y_coord_name
+        self.x_dim_name = x_dim_name
+        self.y_dim_name = y_dim_name
+        self.reindex = reindex
+        self.link = link
 
     def get_variable(self, variable_id):
         for v in self.variables:

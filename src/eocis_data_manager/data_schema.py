@@ -30,28 +30,32 @@ class DataSchema:
         for dataset_id in dataset_config:
 
             dscfg = copy.deepcopy(dataset_config[dataset_id])
+
             if "defaults" in dscfg:
-                dscfg.update(**self.config["defaults"][dscfg["defaults"]])
+                defaults = self.config["defaults"][dscfg["defaults"]]
+                for key in defaults:
+                    if key not in dscfg:
+                        dscfg[key] = defaults[key]
+
+            if "variables" not in dscfg:
+                dscfg["variables"] = {}
 
             variables = []
             for variable_id in dscfg["variables"]:
                 vcfg = dscfg["variables"][variable_id]
                 v = Variable(variable_id=variable_id, variable_name=vcfg["name"],
-                             short_description=vcfg.get("short_description",""),
-                             long_description=vcfg.get("long_description", ""),
-                             climatology_path=vcfg.get("climatology_path",""),
-                             based_on_variable=vcfg.get("based_on_variable",""))
+                             description=vcfg.get("description",""))
                 variables.append(v)
 
             start_date=datetime.datetime.strptime(dscfg["start_date"],"%Y-%m-%d").replace(tzinfo=None).date() if "start_date" in dscfg else None
             end_date=datetime.datetime.strptime(dscfg["end_date"],"%Y-%m-%d").replace(tzinfo=None).date() if "end_date" in dscfg else None
             license = dscfg.get("license",None)
             citation = dscfg.get("citation", None)
+            link = dscfg.get("link", "")
 
             d = DataSet(dataset_id=dataset_id,
                     dataset_name=dscfg.get("name",""),
-                    short_description=dscfg.get("short_description",""),
-                    long_description=dscfg.get("long_description", ""),
+                    description=dscfg.get("description",""),
                     temporal_resolution=dscfg.get("temporal_resolution",None),
                     spatial_resolution=dscfg.get("spatial_resolution",None),
                     start_date=start_date,
@@ -63,9 +67,15 @@ class DataSchema:
                     x_max=dscfg.get("x_max",0),
                     y_min=dscfg.get("y_min",0),
                     y_max=dscfg.get("y_max",0),
+                    x_coord_name=dscfg.get("x_coordinate", "lon"),
+                    y_coord_name=dscfg.get("y_coordinate", "lat"),
+                    x_dim_name=dscfg.get("x_dimension", "x"),
+                    y_dim_name=dscfg.get("y_dimension", "y"),
                     license=license,
                     citation=citation,
-                    enabled=True)
+                    enabled=True,
+                    link=link,
+                    reindex=dscfg.get("reindex", False))
 
             self.datasets[dataset_id] = d
 
@@ -78,29 +88,33 @@ class DataSchema:
     def get_datasets(self):
         return list(self.datasets.values())
 
-    def get_dataset(self, dataset_id):
+    def get_dataset(self, dataset_id, with_stac=True):
         dataset = self.datasets[dataset_id]
 
-        if dataset.start_date is None or dataset.end_date is None or dataset.license is None \
-                or dataset.citation is None:
+        if dataset.collection and with_stac:
 
-            if dataset.collection:
+            # augument the dataset with information from the stac collection
+            client = Client.open("https://api.stac.ceda.ac.uk")
+            collection = client.get_collection(dataset.collection)
 
-                # augument the dataset with information from the stac collection
-                client = Client.open("https://api.stac.ceda.ac.uk")
-                collection = client.get_collection(dataset.collection)
+            if dataset.start_date is None:
+                dataset.start_date = collection.extent.temporal.intervals[0][0].replace(tzinfo=None)
 
-                if dataset.start_date is None:
-                    dataset.start_date = collection.extent.temporal.intervals[0][0].replace(tzinfo=None)
+            if dataset.end_date is None:
+                dataset.end_date = collection.extent.temporal.intervals[-1][1].replace(tzinfo=None)
 
-                if dataset.end_date is None:
-                    dataset.end_date = collection.extent.temporal.intervals[-1][1].replace(tzinfo=None)
+            if dataset.license is None:
+                dataset.license = collection.license
 
-                if dataset.license is None:
-                    dataset.license = collection.license
+            if dataset.citation is None:
+                dataset.citation = collection.extra_fields.get("sci:citation")
 
-                if dataset.citation is None:
-                    dataset.citation = collection.extra_fields.get("sci:citation")
+            if not dataset.variables:
+                if "cube:variables" in collection.extra_fields:
+                    for (key,props) in collection.extra_fields["cube:variables"].items():
+                        dataset.variables.append(
+                            Variable(variable_id=key, variable_name=props.get("description",key),
+                                       description=props.get("description", "")))
 
         return dataset
 

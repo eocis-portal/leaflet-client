@@ -37,7 +37,7 @@ class SpatialSelect(object):
     """
 
     def __init__(self, x_min:float, y_min:float, x_max:float, y_max:float,
-                 y_dim_name:str, x_dim_name:str, t_dim_name:str):
+                 y_coord_name:str, x_coord_name:str):
         """
         Construct the aggregator with the given spatial parameters
 
@@ -45,10 +45,8 @@ class SpatialSelect(object):
         :param y_min:  minimum y-coordinate of box
         :param x_max:  maximum x-coordinate of box
         :param y_max:  maximum y-coordinate of box
-
-        :param y_dim_name: the name of the y dimension
-        :param x_dim_name: the name of the x dimension
-        :param t_dim_name: the name of the time dimension
+        :param y_coord_name: the name of the y coordinate
+        :param x_coord_name: the name of the x coordinate
 
         """
         self.x_min = x_min
@@ -57,9 +55,8 @@ class SpatialSelect(object):
         self.y_max = y_max
 
         self.lat_weighting = None
-        self.y_dim_name = y_dim_name
-        self.x_dim_name = x_dim_name
-        self.t_dim_name = t_dim_name
+        self.y_coord_name = y_coord_name
+        self.x_coord_name = x_coord_name
 
     def format_dt(self, dt: datetime.datetime) -> str:
         return dt.strftime("%Y-%m-%d")
@@ -73,10 +70,10 @@ class SpatialSelect(object):
         :return: xarray dataset containing selected area
         """
 
-        reverse_lat_order = data[self.y_dim_name].values[0] > data[self.y_dim_name].values[-1]
+        reverse_lat_order = data[self.y_coord_name].values[0] > data[self.y_coord_name].values[-1]
         data = data.sel({
-            self.y_dim_name:slice(self.y_max,self.y_min) if reverse_lat_order else slice(self.y_min,self.y_max),
-            self.x_dim_name:slice(self.x_min, self.x_max)})
+            self.y_coord_name:slice(self.y_max,self.y_min) if reverse_lat_order else slice(self.y_min,self.y_max),
+            self.x_coord_name:slice(self.x_min, self.x_max)})
 
         return data
 

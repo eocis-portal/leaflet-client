@@ -8,86 +8,135 @@
     "initial_zoom": 2,
     "max_zoom": 10,
     "projection": "EPSG:4326",
-    "data_url": "http://127.0.0.1:50010",
+    "local_data_url": "http://127.0.0.1:50010",
+    "data_url": "https://eocis.org/portal/data",
     "layers": {
       "analysed_sst": {
+        "disabled": true,
         "dataset": "sst",
+        "name": "Sea Surface Temperature",
         "variable": "analysed_sst",
         "cmap": "sst",
         "min": 0,
         "max": 32,
         "units": "Degrees Centigrade",
-        "step": "daily",
-        "offset": -273.15,
-        "projection": "EPSG:4326"
+        "offset": -273.15
       },
       "analysed_sst_uncertainty": {
+         "disabled": true,
         "dataset": "sst",
+        "name": "Sea Surface Temperature Uncertainty",
         "variable": "analysed_sst_uncertainty",
         "cmap": "viridis",
         "min": 0,
         "max": 2,
-        "units": "Degrees Centigrade",
-        "step": "daily",
-        "projection": "EPSG:4326"
-      },
-      "analysed_sst_anomaly": {
-        "dataset": "sst",
-        "cache": false,
-        "variable": "analysed_sst_anomaly",
-        "cmap": "coolwarm",
-        "min": -5,
-        "max": 5,
-        "units": "Degrees Centigrade",
-        "step": "daily"
+        "units": "Degrees Centigrade"
       },
       "lst_3a_day": {
-        "cache": false,
         "dataset": "lst_s3a_day",
+        "name": "Land Surface Temperature (Daytime) from Sentinel3A",
         "variable": "lst",
         "cmap": "coolwarm",
         "min": -20,
         "max": 50,
         "units": "Degrees Centigrade",
-        "step": "daily",
-        "offset": -273.15,
-        "projection": "EPSG:4326"
+        "offset": -273.15
       },
       "lst_3b_day": {
-        "cache": false,
         "dataset": "lst_s3b_day",
+        "name": "Land Surface Temperature (Daytime) from Sentinel3B",
         "variable": "lst",
         "cmap": "coolwarm",
         "min": -20,
         "max": 50,
         "units": "Degrees Centigrade",
-        "step": "daily",
-        "offset": -273.15,
-        "projection": "EPSG:4326"
+        "offset": -273.15
+      },
+      "lst_3b_day_ndvi": {
+        "dataset": "lst_s3b_day",
+        "name": "NDVI (Daytime) from Sentinel3B",
+        "variable": "ndvi",
+        "cmap": "RdYlGn",
+        "min": -1,
+        "max": 1,
+        "units": ""
       },
       "lst_3a_night": {
-          "cache": false,
-          "dataset": "lst_s3a_night",
-          "variable": "lst",
-          "cmap": "coolwarm",
-          "min": -20,
-          "max": 50,
-          "units": "Degrees Centigrade",
-          "step": "daily",
-          "offset": -273.15,
-          "projection": "EPSG:4326"
-      },
-      "lst_3b_night": {
-        "cache": false,
-        "dataset": "lst_s3b_night",
+        "dataset": "lst_s3a_night",
+        "name": "Land Surface Temperature (Nighttime) from Sentinel3A",
         "variable": "lst",
         "cmap": "coolwarm",
         "min": -20,
         "max": 50,
         "units": "Degrees Centigrade",
-        "step": "daily",
-        "offset": -273.15,
-        "projection": "EPSG:4326"
+        "offset": -273.15
+      },
+      "lst_3b_night": {
+        "dataset": "lst_s3b_night",
+        "name": "Land Surface Temperature (Nighttime) from Sentinel3B",
+        "variable": "lst",
+        "cmap": "coolwarm",
+        "min": -20,
+        "max": 50,
+        "units": "Degrees Centigrade",
+        "offset": -273.15
+      },
+      "lst_3b_night_ndvi": {
+        "dataset": "lst_s3b_night",
+        "name": "NDVI (Nighttime) from Sentinel3B",
+        "variable": "ndvi",
+        "cmap": "RdYlGn",
+        "min": -1,
+        "max": 1,
+        "units": ""
+      },
+      "aerosol_slstr_daily_s3a": {
+        "dataset": "aerosol_slstr_daily_s3a",
+        "variables": [
+          "AOD550_mean",
+          "AOD670_mean",
+          "AOD870_mean",
+          "AOD1600_mean"
+        ],
+        "cmap": "jet_aerosol",
+        "min": 0,
+        "max": 1
+      },
+      "aerosol_slstr_daily_s3b": {
+        "dataset": "aerosol_slstr_daily_s3b",
+        "variables": [
+          "AOD550_mean",
+          "AOD670_mean",
+          "AOD870_mean",
+          "AOD1600_mean"
+        ],
+        "cmap": "jet_aerosol",
+        "min": 0,
+        "max": 1
+      },
+      "aerosol_slstr_monthly_s3a": {
+        "dataset": "aerosol_slstr_monthly_s3a",
+        "variables": [
+          "AOD550_mean",
+          "AOD670_mean",
+          "AOD870_mean",
+          "AOD1600_mean"
+        ],
+        "cmap": "jet_aerosol",
+        "min": 0,
+        "max": 1
+      },
+      "aerosol_slstr_monthly_s3b": {
+        "dataset": "aerosol_slstr_monthly_s3b",
+        "variables": [
+          "AOD550_mean",
+          "AOD670_mean",
+          "AOD870_mean",
+          "AOD1600_mean"
+        ],
+        "cmap": "jet_aerosol",
+        "min": 0,
+        "max": 1
       }
     }
   },
@@ -175,6 +224,202 @@
         "aggfn": "mean",
         "flip": "y",
         "units": "fraction"
+      }
+    }
+  },
+  "chuk_test": {
+    "projection": "EPSG:27700",
+    "min_zoom": 0,
+    "initial_zoom": 0,
+    "max_zoom": 7,
+    "lat_min": 48,
+    "lat_max": 62,
+    "lon_min": -16,
+    "lon_max": 4,
+    "layers": {
+      "landcover_test": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "units": "",
+        "dataset": "chuk_landcover",
+        "variable": "land_cover",
+        "cmap": "LandCover",
+        "min": 1,
+        "max": 21,
+        "clip_min": 1,
+        "aggfn": "mode",
+        "flip": "y",
+        "legend": "table",
+        "legend_classes": "Deciduous_woodland Coniferous_woodland Arable Improved_grassland Neutral_grassland Calcareous_grassland Acid_grassland Fen Heather Heather_grassland Bog Inland_rock Saltwater Freshwater Supralittoral_rock Supralittoral_sediment Littoral_rock Littoral_sediment Saltmarsh Urban Suburban",
+        "legend_colors": "#006600 #732600 #00FF00 #7FE57F #70A800 #998100 #FFFF00 #801A80 #E68CA6 #008073 #D2D2FF #000080 #0000FF #CCB300 #CCB300 #FFFF80 #FFFF80 #8080FF #000000 #808080 #00FFFFFF",
+        "categories": {
+          "1": "Deciduous_woodland",
+          "2": "Coniferous_woodland",
+          "3": "Arable",
+          "4": "Improved_grassland",
+          "5": "Neutral_grassland",
+          "6": "Calcareous_grassland",
+          "7": "Acid_grassland",
+          "8": "Fen",
+          "9": "Heather",
+          "10": "Heather_grassland",
+          "11": "Bog",
+          "12": "Inland_rock",
+          "13": "Saltwater",
+          "14": "Freshwater",
+          "15": "Supralittoral_rock",
+          "16": "Supralittoral_sediment",
+          "17": "Littoral_rock",
+          "18": "Littoral_sediment",
+          "19": "Saltmarsh",
+          "20": "Urban",
+          "21": "Suburban"
+        }
+      },
+      "elevation_test": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "dataset": "chuk_elevation",
+        "variable": "elevation",
+        "cmap": "viridis",
+        "min": 0,
+        "max": 1100,
+        "aggfn": "mean",
+        "flip": "y",
+        "units": "metres"
+      },
+      "urban_area_test": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "dataset": "chuk_builtarea",
+        "variable": "urban_area",
+        "cmap": "viridis",
+        "min": 0,
+        "max": 1,
+        "aggfn": "mean",
+        "flip": "y",
+        "units": "fraction"
+      },
+      "suburban_area_test": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "dataset": "chuk_builtarea",
+        "variable": "suburban_area",
+        "cmap": "viridis",
+        "min": 0,
+        "max": 1,
+        "aggfn": "mean",
+        "flip": "y",
+        "units": "fraction"
+      },
+      "chuk_lst_nn_test": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "dataset": "chuk_lst_nn",
+        "variable": "lst_model_estimate",
+        "cmap": "coolwarm",
+        "min": 0,
+        "max": 50,
+        "aggfn": "mean",
+        "flip": "y",
+        "offset": -273.15,
+        "units": "Degrees Centigrade",
+        "step": "daily"
+      },
+      "lst_era5land_skt_test": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "dataset": "chuk_lst_nn",
+        "variable": "lst_era5land_skt",
+        "cmap": "coolwarm",
+        "min": 0,
+        "max": 50,
+        "aggfn": "mean",
+        "flip": "y",
+        "offset": -273.15,
+        "units": "Degrees Centigrade",
+        "step": "daily"
+      },
+      "lst_landsat_obs_test": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "dataset": "chuk_lst_nn",
+        "variable": "lst_landsat_observations",
+        "cmap": "coolwarm",
+        "min": 0,
+        "max": 50,
+        "aggfn": "mean",
+        "flip": "y",
+        "offset": -273.15,
+        "units": "Degrees Centigrade",
+        "step": "daily"
+      },
+      "lst_model_traintest_test": {
+        "x_dim": "x",
+        "y_dim": "y",
+        "dataset": "chuk_lst_nn",
+        "variable": "lst_model_traintest",
+        "cmap": "LstModelTrainTest",
+        "legend": "table",
+        "legend_classes": "train test",
+        "legend_colors": "#FF0000 #0000FF",
+        "min": 1,
+        "max": 2,
+        "clip_min": 1,
+        "units": "",
+        "aggfn": "mode",
+        "categories": {
+          "1": "train",
+          "2": "test"
+        },
+        "flip": "y",
+        "step": "daily"
+      }
+    }
+  },
+  "antarctic": {
+    "projection": "EPSG:3031",
+    "min_zoom": 0,
+    "initial_zoom": 0,
+    "max_zoom": 7,
+    "lat_min": -90,
+    "lat_max": -56,
+    "lon_min": -180,
+    "lon_max": 180,
+    "layers": {
+      "surface_elevation_change": {
+        "dataset": "land_ice_elevation",
+        "variable": "sec",
+        "units": "m/yr",
+        "x_dim": "x",
+        "y_dim": "y",
+        "cmap": "coolwarm",
+        "min": -1,
+        "max": 1,
+        "aggfn": "mean"
+      }
+    }
+  },
+  "arctic": {
+    "projection": "EPSG:3413",
+    "min_zoom": 0,
+    "initial_zoom": 0,
+    "max_zoom": 7,
+    "lat_max": 90,
+    "lat_min": 56,
+    "lon_min": -180,
+    "lon_max": 180,
+    "layers": {
+      "arctic_sea_ice_thickness": {
+        "dataset": "arctic_sea_ice_thickness",
+        "variable": "sea_ice_thickness",
+        "units": "m",
+        "x_dim": "x",
+        "y_dim": "y",
+        "cmap": "Blues_r",
+        "min": 0,
+        "max": 3.5,
+        "aggfn": "mean"
       }
     }
   }

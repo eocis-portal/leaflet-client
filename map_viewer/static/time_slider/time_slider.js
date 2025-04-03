@@ -3,7 +3,7 @@ var time_slider_base_url = document.currentScript.src.split("/").slice(0,-1).joi
 
 class TimeSlider {
 
-    constructor(parent_id, start_date, end_date, view_date) {
+    constructor(parent_id, start_date, end_date, view_date, step) {
         this.parent = document.getElementById(parent_id);
         this.dec_btn = document.createElement("button");
         this.dec_btn_image = document.createElement("img");
@@ -41,6 +41,7 @@ class TimeSlider {
         this.event_handlers = {};
         this.start_date = start_date;
         this.end_date = end_date;
+        this.step = step;
 
         let start_year = 1900+this.start_date.getYear();
         let end_year = 1900+this.end_date.getYear();
@@ -75,6 +76,9 @@ class TimeSlider {
             let t3 = t1 + (frac*(t2-t1));
             let new_dt = new Date(t3);
             new_dt.setHours(12, 0, 0, 0);
+            if (this.step == "monthly") {
+                new_dt.setDate(15);
+            }
             this.value = new_dt;
         });
         this.dec_btn.addEventListener("click", (evt) => {
@@ -93,9 +97,19 @@ class TimeSlider {
 
     adjust(nr_steps) {
         var d = new Date(this.current_value);
-        d.setDate(d.getDate() + nr_steps);
-        if (d >= this.start_date && d <= this.end_date) {
-            this.value = d;
+        switch(this.step) {
+            case "daily":
+                d.setDate(d.getDate() + nr_steps);
+                if (d >= this.start_date && d <= this.end_date) {
+                    this.value = d;
+                }
+                break;
+            case "monthly":
+                let next_date = new Date(d.setMonth(d.getMonth() + nr_steps));
+                next_date.setHours(12, 0, 0, 0);
+                next_date.setDate(15);
+                this.value = next_date;
+                break;
         }
     }
 
